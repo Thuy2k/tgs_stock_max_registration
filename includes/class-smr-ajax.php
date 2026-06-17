@@ -9,13 +9,12 @@ class TGS_SMR_Ajax
     public static function init()
     {
         $actions = [
-            'list_temp_products' => 'list_temp_products',
-            'save_temp_product' => 'save_temp_product',
-            'delete_temp_product' => 'delete_temp_product',
             'list_requests' => 'list_requests',
             'create_request' => 'create_request',
             'get_request' => 'get_request',
             'save_cell' => 'save_cell',
+            'save_item_sku' => 'save_item_sku',
+            'save_item_name' => 'save_item_name',
             'update_status' => 'update_status',
             'delete_item' => 'delete_item',
             'apply_request' => 'apply_request',
@@ -44,54 +43,6 @@ class TGS_SMR_Ajax
             }
         }
     }
-
-    public static function list_temp_products()
-    {
-        self::verify_access();
-        TGS_SMR_Helper::verify_nonce();
-        $rows = TGS_SMR_Repository::list_temp_products([
-            'source_blog_id' => get_current_blog_id(),
-            'search' => sanitize_text_field($_POST['search'] ?? ''),
-        ]);
-        wp_send_json_success(['items' => $rows]);
-    }
-
-    public static function save_temp_product()
-    {
-        self::verify_access();
-        TGS_SMR_Helper::verify_nonce();
-        $result = TGS_SMR_Repository::save_temp_product([
-            'temp_product_id' => absint($_POST['temp_product_id'] ?? 0),
-            'global_product_name_id' => absint($_POST['global_product_name_id'] ?? 0),
-            'product_sku' => sanitize_text_field($_POST['product_sku'] ?? ''),
-            'product_name' => sanitize_textarea_field($_POST['product_name'] ?? ''),
-            'product_description' => sanitize_textarea_field($_POST['product_description'] ?? ''),
-            'thumbnail_url' => esc_url_raw($_POST['thumbnail_url'] ?? ''),
-            'supplier_barcode' => sanitize_text_field($_POST['supplier_barcode'] ?? ''),
-            'suggested_price' => sanitize_text_field($_POST['suggested_price'] ?? ''),
-            'product_meta' => json_decode(wp_unslash($_POST['product_meta'] ?? '{}'), true) ?: [],
-            'source_blog_id' => get_current_blog_id(),
-        ]);
-
-        if (is_wp_error($result)) {
-            wp_send_json_error(['message' => $result->get_error_message()], 400);
-        }
-
-        wp_send_json_success(['temp_product_id' => $result]);
-    }
-
-    public static function delete_temp_product()
-    {
-        self::verify_access();
-        TGS_SMR_Helper::verify_nonce();
-        $id = absint($_POST['temp_product_id'] ?? 0);
-        if (!$id) {
-            wp_send_json_error(['message' => 'Thiếu sản phẩm.'], 400);
-        }
-        $ok = TGS_SMR_Repository::delete_temp_product($id);
-        wp_send_json_success(['deleted' => (bool) $ok]);
-    }
-
     public static function list_requests()
     {
         self::verify_access();
@@ -111,10 +62,13 @@ class TGS_SMR_Ajax
         self::verify_access();
         TGS_SMR_Helper::verify_nonce();
 
-        $temp_ids = array_map('absint', (array) ($_POST['temp_product_ids'] ?? []));
+        $products = [];
         $shop_ids = array_map('intval', (array) ($_POST['shop_ids'] ?? []));
-        if (empty($temp_ids) && !empty($_POST['temp_product_ids_json'])) {
-            $temp_ids = array_map('absint', (array) json_decode(wp_unslash($_POST['temp_product_ids_json']), true));
+        if (!empty($_POST['products_json'])) {
+            $decoded_products = json_decode(wp_unslash($_POST['products_json']), true);
+            if (is_array($decoded_products)) {
+                $products = $decoded_products;
+            }
         }
         if (empty($shop_ids) && !empty($_POST['shop_ids_json'])) {
             $shop_ids = array_map('intval', (array) json_decode(wp_unslash($_POST['shop_ids_json']), true));
@@ -124,7 +78,7 @@ class TGS_SMR_Ajax
             'source_blog_id' => get_current_blog_id(),
             'request_title' => sanitize_text_field($_POST['request_title'] ?? ''),
             'note' => sanitize_textarea_field($_POST['note'] ?? ''),
-            'temp_product_ids' => $temp_ids,
+            'products' => $products,
             'shop_ids' => $shop_ids,
             'include_demo' => !empty($_POST['include_demo']),
             'demo_count' => absint($_POST['demo_count'] ?? 65),
@@ -199,6 +153,38 @@ class TGS_SMR_Ajax
         }
 
         wp_send_json_success(['saved' => true]);
+    }
+
+    public static function save_item_sku()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $request_id = absint($_POST['request_id'] ?? 0);
+        $request_item_id = absint($_POST['request_item_id'] ?? 0);
+        $product_sku = sanitize_text_field($_POST['product_sku'] ?? '');
+
+        $result = TGS_SMR_Repository::update_item_sku($request_id, $request_item_id, $product_sku);
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+
+        wp_send_json_success(array_merge(['saved' => true], $result));
+    }
+
+    public static function save_item_name()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $request_id = absint($_POST['request_id'] ?? 0);
+        $request_item_id = absint($_POST['request_item_id'] ?? 0);
+        $product_name = sanitize_textarea_field($_POST['product_name'] ?? '');
+
+        $result = TGS_SMR_Repository::update_item_name($request_id, $request_item_id, $product_name);
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+
+        wp_send_json_success(['saved' => true, 'product_name' => $result]);
     }
 
     public static function update_status()

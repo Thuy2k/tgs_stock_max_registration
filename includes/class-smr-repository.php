@@ -9,112 +9,15 @@ class TGS_SMR_Repository
     public static function tables()
     {
         return [
-            'product' => TGS_SMR_Helper::table('temp_product'),
             'request' => TGS_SMR_Helper::table('request'),
             'item' => TGS_SMR_Helper::table('request_item'),
             'shop' => TGS_SMR_Helper::table('request_shop'),
             'value' => TGS_SMR_Helper::table('request_value'),
             'log' => TGS_SMR_Helper::table('request_log'),
             'stock_config' => $GLOBALS['wpdb']->base_prefix . 'global_sku_stock_config',
+            'global_product' => $GLOBALS['wpdb']->base_prefix . 'global_product_name',
         ];
     }
-
-    public static function list_temp_products($args = [])
-    {
-        global $wpdb;
-        $t = self::tables();
-        $source_blog_id = (int) ($args['source_blog_id'] ?? 0);
-        $search = trim((string) ($args['search'] ?? ''));
-
-        $where = ['is_deleted = 0'];
-        $params = [];
-
-        if ($source_blog_id > 0) {
-            $where[] = 'source_blog_id = %d';
-            $params[] = $source_blog_id;
-        }
-
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where[] = '(product_name LIKE %s OR product_sku LIKE %s OR supplier_barcode LIKE %s)';
-            array_push($params, $like, $like, $like);
-        }
-
-        $sql = "SELECT * FROM {$t['product']} WHERE " . implode(' AND ', $where) . " ORDER BY updated_at DESC, temp_product_id DESC LIMIT 200";
-        if (!empty($params)) {
-            $sql = $wpdb->prepare($sql, ...$params);
-        }
-
-        return array_map([__CLASS__, 'object_to_array'], (array) $wpdb->get_results($sql));
-    }
-
-    public static function save_temp_product($data)
-    {
-        global $wpdb;
-        $t = self::tables();
-        $id = (int) ($data['temp_product_id'] ?? 0);
-        $now = TGS_SMR_Helper::now();
-        $row = [
-            'global_product_name_id' => !empty($data['global_product_name_id']) ? (int) $data['global_product_name_id'] : null,
-            'product_sku' => self::nullable_text($data['product_sku'] ?? ''),
-            'product_name' => sanitize_textarea_field($data['product_name'] ?? ''),
-            'product_description' => sanitize_textarea_field($data['product_description'] ?? ''),
-            'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''),
-            'supplier_barcode' => sanitize_text_field($data['supplier_barcode'] ?? ''),
-            'suggested_price' => ($data['suggested_price'] ?? '') === '' ? null : (float) $data['suggested_price'],
-            'product_meta' => self::json_encode_safe($data['product_meta'] ?? []),
-            'source_blog_id' => (int) ($data['source_blog_id'] ?? get_current_blog_id()),
-            'source_blog_name_cache' => TGS_SMR_Helper::site_name((int) ($data['source_blog_id'] ?? get_current_blog_id())),
-            'updated_by' => get_current_user_id(),
-            'updated_at' => $now,
-        ];
-
-        if ($row['product_name'] === '') {
-            return new WP_Error('missing_name', 'Vui lòng nhập tên sản phẩm.');
-        }
-
-        if ($id > 0) {
-            $wpdb->update($t['product'], $row, ['temp_product_id' => $id]);
-            return $id;
-        }
-
-        $row['created_by'] = get_current_user_id();
-        $row['created_at'] = $now;
-        $wpdb->insert($t['product'], $row);
-        return (int) $wpdb->insert_id;
-    }
-
-    public static function delete_temp_product($id)
-    {
-        global $wpdb;
-        $t = self::tables();
-        return (bool) $wpdb->update($t['product'], [
-            'is_deleted' => 1,
-            'deleted_at' => TGS_SMR_Helper::now(),
-            'updated_by' => get_current_user_id(),
-            'updated_at' => TGS_SMR_Helper::now(),
-        ], ['temp_product_id' => (int) $id]);
-    }
-
-    public static function get_temp_products_by_ids($ids)
-    {
-        global $wpdb;
-        $ids = array_values(array_filter(array_map('intval', (array) $ids)));
-        if (empty($ids)) {
-            return [];
-        }
-
-        $t = self::tables();
-        $in = implode(',', $ids);
-        $rows = $wpdb->get_results("SELECT * FROM {$t['product']} WHERE temp_product_id IN ({$in}) AND is_deleted = 0");
-        $map = [];
-        foreach ((array) $rows as $row) {
-            $map[(int) $row->temp_product_id] = self::object_to_array($row);
-        }
-
-        return $map;
-    }
-
     public static function list_requests($args = [])
     {
         global $wpdb;
@@ -170,7 +73,6 @@ class TGS_SMR_Repository
 
         return $rows;
     }
-
     public static function create_request($data)
     {
         global $wpdb;
@@ -178,22 +80,17 @@ class TGS_SMR_Repository
         $source_blog_id = (int) ($data['source_blog_id'] ?? get_current_blog_id());
         $title = sanitize_text_field($data['request_title'] ?? '');
         $note = sanitize_textarea_field($data['note'] ?? '');
-        $temp_product_ids = array_values(array_filter(array_map('intval', (array) ($data['temp_product_ids'] ?? []))));
+        $products = self::normalize_request_products($data['products'] ?? []);
         $shop_ids = array_values(array_unique(array_map('intval', (array) ($data['shop_ids'] ?? []))));
         $include_demo = !empty($data['include_demo']);
         $demo_count = max(0, min(150, (int) ($data['demo_count'] ?? 0)));
 
+        if (is_wp_error($products)) {
+            return $products;
+        }
+
         if ($title === '') {
             $title = 'Đăng ký tồn max ' . date_i18n('d/m/Y H:i');
-        }
-
-        if (empty($temp_product_ids)) {
-            return new WP_Error('missing_products', 'Vui lòng chọn ít nhất 1 sản phẩm.');
-        }
-
-        $products = self::get_temp_products_by_ids($temp_product_ids);
-        if (empty($products)) {
-            return new WP_Error('invalid_products', 'Không tìm thấy sản phẩm đã chọn.');
         }
 
         $real_targets = TGS_SMR_Helper::real_target_sites($source_blog_id, false);
@@ -218,7 +115,7 @@ class TGS_SMR_Repository
         $demo_targets = $include_demo ? TGS_SMR_Helper::demo_sites($demo_count, 1) : [];
         $targets = array_merge($real_targets, $demo_targets);
         if (empty($targets)) {
-            return new WP_Error('missing_shops', 'Vui long chon shop hoac bat shop demo.');
+            return new WP_Error('missing_shops', 'Vui lòng chọn shop hoặc bật shop demo.');
         }
 
         $now = TGS_SMR_Helper::now();
@@ -236,7 +133,7 @@ class TGS_SMR_Repository
             'shop_count' => count($targets),
             'fake_shop_count' => count($demo_targets),
             'request_meta' => self::json_encode_safe([
-                'selected_temp_product_ids' => $temp_product_ids,
+                'product_payload_version' => 2,
                 'created_from' => 'tgs_stock_max_registration',
             ]),
             'created_by' => get_current_user_id(),
@@ -253,14 +150,9 @@ class TGS_SMR_Repository
         $request_id = (int) $wpdb->insert_id;
         $item_ids = [];
         $order = 1;
-        foreach ($temp_product_ids as $pid) {
-            if (empty($products[$pid])) {
-                continue;
-            }
-            $p = $products[$pid];
-            $wpdb->insert($t['item'], [
+        foreach ($products as $p) {
+            $inserted = $wpdb->insert($t['item'], [
                 'request_id' => $request_id,
-                'temp_product_id' => $pid,
                 'global_product_name_id' => !empty($p['global_product_name_id']) ? (int) $p['global_product_name_id'] : null,
                 'product_sku' => self::nullable_text($p['product_sku'] ?? ''),
                 'product_name' => (string) ($p['product_name'] ?? ''),
@@ -270,17 +162,24 @@ class TGS_SMR_Repository
                 'item_meta' => self::json_encode_safe([
                     'supplier_barcode' => $p['supplier_barcode'] ?? '',
                     'product_description' => $p['product_description'] ?? '',
+                    'source' => !empty($p['global_product_name_id']) ? 'global_product' : 'manual_entry',
                 ]),
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+
+            if (!$inserted) {
+                $wpdb->query('ROLLBACK');
+                return new WP_Error('db_error', 'Không lưu được dòng sản phẩm trong phiếu.');
+            }
+
             $item_ids[] = (int) $wpdb->insert_id;
         }
 
         $shop_ids_inserted = [];
         $order = 1;
         foreach ($targets as $target) {
-            $wpdb->insert($t['shop'], [
+            $inserted = $wpdb->insert($t['shop'], [
                 'request_id' => $request_id,
                 'target_blog_id' => (int) $target['blog_id'],
                 'target_blog_name_cache' => (string) $target['name'],
@@ -291,6 +190,12 @@ class TGS_SMR_Repository
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+
+            if (!$inserted) {
+                $wpdb->query('ROLLBACK');
+                return new WP_Error('db_error', 'Không lưu được danh sách shop trong phiếu.');
+            }
+
             $shop_ids_inserted[] = [
                 'request_shop_id' => (int) $wpdb->insert_id,
                 'target_blog_id' => (int) $target['blog_id'],
@@ -300,7 +205,7 @@ class TGS_SMR_Repository
 
         foreach ($item_ids as $item_id) {
             foreach ($shop_ids_inserted as $shop) {
-                $wpdb->insert($t['value'], [
+                $inserted = $wpdb->insert($t['value'], [
                     'request_id' => $request_id,
                     'request_item_id' => $item_id,
                     'request_shop_id' => (int) $shop['request_shop_id'],
@@ -312,6 +217,11 @@ class TGS_SMR_Repository
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
+
+                if (!$inserted) {
+                    $wpdb->query('ROLLBACK');
+                    return new WP_Error('db_error', 'Không tạo được ô đăng ký cho shop.');
+                }
             }
         }
 
@@ -323,6 +233,62 @@ class TGS_SMR_Repository
 
         $wpdb->query('COMMIT');
         return $request_id;
+    }
+
+    private static function normalize_request_products($products)
+    {
+        $products = is_array($products) ? array_values($products) : [];
+        if (empty($products)) {
+            return new WP_Error('missing_products', 'Vui lòng thêm ít nhất 1 sản phẩm vào phiếu.');
+        }
+
+        $normalized = [];
+        foreach ($products as $index => $product) {
+            if (!is_array($product)) {
+                continue;
+            }
+
+            $global_product = null;
+            $global_id = (int) ($product['global_product_name_id'] ?? 0);
+            if ($global_id > 0) {
+                $global_product = self::find_global_product_by_id($global_id);
+                if (!$global_product) {
+                    return new WP_Error('invalid_global_product', 'Sản phẩm global ở dòng ' . ($index + 1) . ' không còn tồn tại. Vui lòng tìm chọn lại.');
+                }
+            }
+
+            $name = trim(sanitize_textarea_field($product['product_name'] ?? ''));
+            if ($name === '' && $global_product) {
+                $name = (string) ($global_product['global_product_name'] ?? '');
+            }
+
+            $image = esc_url_raw($product['thumbnail_url'] ?? '');
+            if ($name === '') {
+                return new WP_Error('missing_name', 'Vui lòng nhập tên hàng cho dòng ' . ($index + 1) . '.');
+            }
+            if ($image === '') {
+                return new WP_Error('missing_image', 'Vui lòng chọn hoặc dán URL ảnh cho dòng ' . ($index + 1) . '.');
+            }
+
+            $price_raw = isset($product['suggested_price']) ? trim((string) $product['suggested_price']) : '';
+            $price = $price_raw === '' ? null : max(0, (float) $price_raw);
+
+            $normalized[] = [
+                'global_product_name_id' => $global_product ? (int) $global_product['global_product_name_id'] : null,
+                'product_sku' => $global_product ? self::nullable_text($global_product['global_product_sku'] ?? '') : null,
+                'product_name' => $name,
+                'thumbnail_url' => $image,
+                'suggested_price' => $price,
+                'supplier_barcode' => sanitize_text_field($product['supplier_barcode'] ?? ''),
+                'product_description' => sanitize_textarea_field($product['product_description'] ?? ''),
+            ];
+        }
+
+        if (empty($normalized)) {
+            return new WP_Error('missing_products', 'Vui lòng thêm ít nhất 1 sản phẩm vào phiếu.');
+        }
+
+        return $normalized;
     }
 
     public static function get_request_matrix($request_id)
@@ -481,6 +447,120 @@ class TGS_SMR_Repository
         return true;
     }
 
+    public static function update_item_sku($request_id, $request_item_id, $product_sku)
+    {
+        global $wpdb;
+        $t = self::tables();
+        $request_id = (int) $request_id;
+        $request_item_id = (int) $request_item_id;
+        $sku = self::nullable_text($product_sku);
+        if (!$sku) {
+            return new WP_Error('missing_sku', 'Vui lòng nhập mã SKU.');
+        }
+
+        $request = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$t['request']} WHERE request_id = %d", $request_id), ARRAY_A);
+        if (!$request || (int) $request['source_blog_id'] !== get_current_blog_id()) {
+            return new WP_Error('forbidden', 'Chỉ kho tạo phiếu được sửa mã SKU.');
+        }
+
+        if (!in_array($request['status'], ['draft', 'open', 'approved'], true)) {
+            return new WP_Error('locked_request', 'Phiếu đã áp dụng hoặc đã hủy, không thể sửa SKU.');
+        }
+
+        $item = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$t['item']} WHERE request_id = %d AND request_item_id = %d",
+            $request_id,
+            $request_item_id
+        ), ARRAY_A);
+
+        if (!$item) {
+            return new WP_Error('missing_item', 'Không tìm thấy dòng sản phẩm.');
+        }
+
+        $global_product = self::find_global_product_by_sku($sku);
+        if (!$global_product) {
+            return new WP_Error(
+                'invalid_global_sku',
+                'Mã SKU "' . $sku . '" chưa tồn tại trong bảng sản phẩm global. Vui lòng tạo sản phẩm global trước rồi nhập lại SKU.'
+            );
+        }
+
+        $sku = (string) $global_product['global_product_sku'];
+
+        $wpdb->update($t['item'], [
+            'global_product_name_id' => (int) $global_product['global_product_name_id'],
+            'product_sku' => $sku,
+            'updated_at' => TGS_SMR_Helper::now(),
+        ], [
+            'request_id' => $request_id,
+            'request_item_id' => $request_item_id,
+        ]);
+
+        self::add_log($request_id, [
+            'request_item_id' => $request_item_id,
+            'action' => 'update_item_sku',
+            'old_value' => (string) ($item['product_sku'] ?? ''),
+            'new_value' => (string) ($sku ?? ''),
+            'note' => 'Kho cập nhật mã SKU cho dòng sản phẩm',
+        ]);
+
+        return [
+            'global_product_name_id' => (int) $global_product['global_product_name_id'],
+            'global_product_name' => (string) ($global_product['global_product_name'] ?? ''),
+            'product_sku' => $sku,
+        ];
+    }
+
+    public static function update_item_name($request_id, $request_item_id, $product_name)
+    {
+        global $wpdb;
+        $t = self::tables();
+        $request_id = (int) $request_id;
+        $request_item_id = (int) $request_item_id;
+        $name = trim(sanitize_textarea_field((string) $product_name));
+
+        if ($name === '') {
+            return new WP_Error('missing_name', 'Vui lòng nhập tên hàng.');
+        }
+
+        $request = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$t['request']} WHERE request_id = %d", $request_id), ARRAY_A);
+        if (!$request || (int) $request['source_blog_id'] !== get_current_blog_id()) {
+            return new WP_Error('forbidden', 'Chỉ kho tạo phiếu được sửa tên hàng.');
+        }
+
+        if (!in_array($request['status'], ['draft', 'open', 'approved'], true)) {
+            return new WP_Error('locked_request', 'Phiếu đã áp dụng hoặc đã hủy, không thể sửa tên hàng.');
+        }
+
+        $item = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$t['item']} WHERE request_id = %d AND request_item_id = %d",
+            $request_id,
+            $request_item_id
+        ), ARRAY_A);
+
+        if (!$item) {
+            return new WP_Error('missing_item', 'Không tìm thấy dòng sản phẩm.');
+        }
+
+        $wpdb->update($t['item'], [
+            'product_name' => $name,
+            'updated_at' => TGS_SMR_Helper::now(),
+        ], [
+            'request_id' => $request_id,
+            'request_item_id' => $request_item_id,
+        ]);
+
+        self::add_log($request_id, [
+            'request_item_id' => $request_item_id,
+            'action' => 'update_item_name',
+            'old_value' => (string) ($item['product_name'] ?? ''),
+            'new_value' => $name,
+            'note' => 'Kho cập nhật tên hàng cho dòng sản phẩm',
+        ]);
+
+        return $name;
+    }
+
     public static function delete_item($request_id, $request_item_id)
     {
         global $wpdb;
@@ -561,6 +641,47 @@ class TGS_SMR_Repository
         }
         if (!in_array($request['status'], ['approved', 'applied'], true)) {
             return new WP_Error('not_approved', 'Cần duyệt phiếu trước khi áp dụng.');
+        }
+
+        $missing_sku_items = $wpdb->get_results($wpdb->prepare(
+            "SELECT request_item_id, product_name
+             FROM {$t['item']}
+             WHERE request_id = %d
+               AND (product_sku IS NULL OR TRIM(product_sku) = '')
+             ORDER BY item_order ASC, request_item_id ASC",
+            $request_id
+        ), ARRAY_A);
+
+        if (!empty($missing_sku_items)) {
+            $names = array_map(static function ($item) {
+                return (string) ($item['product_name'] ?? '');
+            }, array_slice($missing_sku_items, 0, 5));
+            $message = 'Không thể áp dụng max vì còn dòng chưa có mã SKU: ' . implode(', ', array_filter($names)) . '. Vui lòng cập nhật SKU trước.';
+            return new WP_Error('missing_item_sku', $message);
+        }
+
+        $invalid_sku_items = $wpdb->get_results($wpdb->prepare(
+            "SELECT i.request_item_id, i.product_name, i.product_sku
+             FROM {$t['item']} i
+             LEFT JOIN {$t['global_product']} gp
+                    ON gp.global_product_sku = i.product_sku
+                   AND gp.is_deleted = 0
+             WHERE i.request_id = %d
+               AND i.product_sku IS NOT NULL
+               AND TRIM(i.product_sku) <> ''
+               AND gp.global_product_name_id IS NULL
+             ORDER BY i.item_order ASC, i.request_item_id ASC",
+            $request_id
+        ), ARRAY_A);
+
+        if (!empty($invalid_sku_items)) {
+            $items = array_map(static function ($item) {
+                $sku = (string) ($item['product_sku'] ?? '');
+                $name = (string) ($item['product_name'] ?? '');
+                return $name !== '' ? $name . ' (' . $sku . ')' : $sku;
+            }, array_slice($invalid_sku_items, 0, 5));
+            $message = 'Không thể áp dụng max vì còn SKU chưa tồn tại trong bảng sản phẩm global: ' . implode(', ', array_filter($items)) . '. Vui lòng tạo sản phẩm global trước rồi lưu lại SKU.';
+            return new WP_Error('invalid_item_sku', $message);
         }
 
         $rows = $wpdb->get_results($wpdb->prepare(
@@ -652,6 +773,44 @@ class TGS_SMR_Repository
             $code = $base . '-' . $i++;
         }
         return $code;
+    }
+
+    private static function find_global_product_by_sku($sku)
+    {
+        global $wpdb;
+        $sku = trim(sanitize_text_field((string) $sku));
+        if ($sku === '') {
+            return null;
+        }
+
+        $t = self::tables();
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT global_product_name_id, global_product_sku, global_product_name
+             FROM {$t['global_product']}
+             WHERE is_deleted = 0
+               AND global_product_sku = %s
+             LIMIT 1",
+            $sku
+        ), ARRAY_A);
+    }
+
+    private static function find_global_product_by_id($id)
+    {
+        global $wpdb;
+        $id = (int) $id;
+        if ($id <= 0) {
+            return null;
+        }
+
+        $t = self::tables();
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT global_product_name_id, global_product_sku, global_product_name
+             FROM {$t['global_product']}
+             WHERE is_deleted = 0
+               AND global_product_name_id = %d
+             LIMIT 1",
+            $id
+        ), ARRAY_A);
     }
 
     private static function add_log($request_id, $data, $inside_transaction = true)

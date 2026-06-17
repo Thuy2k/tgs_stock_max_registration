@@ -21,9 +21,6 @@ $current_name = TGS_SMR_Helper::current_blog_name();
                 <button type="button" class="btn btn-primary" data-smr-tab-target="create">
                     <i class="bx bx-plus-circle"></i> Tạo phiếu
                 </button>
-                <button type="button" class="btn btn-outline-primary" data-smr-tab-target="products">
-                    <i class="bx bx-package"></i> Sản phẩm mới
-                </button>
             <?php endif; ?>
             <button type="button" class="btn btn-outline-secondary" id="smrReloadAll">
                 <i class="bx bx-refresh"></i> Tải lại
@@ -36,9 +33,6 @@ $current_name = TGS_SMR_Helper::current_blog_name();
             <i class="bx bx-list-ul"></i> Danh sách phiếu
         </button>
         <?php if ($is_warehouse): ?>
-            <button type="button" data-smr-tab="products">
-                <i class="bx bx-package"></i> Sản phẩm tạm
-            </button>
             <button type="button" data-smr-tab="create">
                 <i class="bx bx-plus-circle"></i> Tạo phiếu đăng ký
             </button>
@@ -69,86 +63,11 @@ $current_name = TGS_SMR_Helper::current_blog_name();
     </section>
 
     <?php if ($is_warehouse): ?>
-        <section class="tgs-smr-panel" data-smr-panel="products">
-            <div class="tgs-smr-panel-head">
-                <div>
-                    <h5>Sản phẩm mới / chưa có SKU</h5>
-                    <p>Có thể để trống SKU, sau này gắn mã global khi đã tạo mã hàng.</p>
-                </div>
-                <button type="button" class="btn btn-primary" id="smrNewProductBtn">
-                    <i class="bx bx-plus"></i> Thêm sản phẩm
-                </button>
-            </div>
-
-            <div class="tgs-smr-product-form d-none" id="smrProductForm">
-                <input type="hidden" id="smrProductId">
-                <div class="tgs-smr-product-editor">
-                    <div class="tgs-smr-image-panel">
-                        <label class="form-label">Ảnh sản phẩm</label>
-                        <div class="tgs-smr-image-preview is-empty" id="smrProductImagePreview">
-                            <img src="" alt="" class="d-none" id="smrProductImage">
-                            <div class="tgs-smr-image-placeholder" id="smrProductImagePlaceholder">
-                                <i class="bx bx-image-add"></i>
-                                <span>Chọn ảnh hoặc dán URL</span>
-                            </div>
-                        </div>
-                        <div class="tgs-smr-image-actions">
-                            <button type="button" class="btn btn-outline-primary" id="smrPickImageBtn">
-                                <i class="bx bx-upload"></i> Chọn / upload ảnh
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" id="smrClearImageBtn">
-                                <i class="bx bx-x"></i> Xóa ảnh
-                            </button>
-                        </div>
-                        <input type="url" class="form-control" id="smrProductThumb" placeholder="Hoặc dán URL ảnh">
-                    </div>
-
-                    <div class="tgs-smr-product-fields">
-                        <div class="tgs-smr-field-grid">
-                            <div>
-                                <label class="form-label">SKU</label>
-                                <input type="text" class="form-control" id="smrProductSku" placeholder="Có thể trống">
-                            </div>
-                            <div>
-                                <label class="form-label">Giá đề xuất</label>
-                                <input type="number" class="form-control" id="smrProductPrice" min="0" step="1">
-                            </div>
-                            <div>
-                                <label class="form-label">Barcode NCC</label>
-                                <input type="text" class="form-control" id="smrProductBarcode">
-                            </div>
-                            <div class="tgs-smr-global-search">
-                                <button type="button" class="btn btn-outline-secondary" id="smrGlobalSearchBtn" title="Tìm sản phẩm global">
-                                    <i class="bx bx-search"></i> Tìm global
-                                </button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="form-label">Tên hàng</label>
-                            <textarea class="form-control" id="smrProductName" rows="3"></textarea>
-                        </div>
-                        <div>
-                            <label class="form-label">Mô tả</label>
-                            <input type="text" class="form-control" id="smrProductDesc">
-                        </div>
-                        <div class="tgs-smr-form-actions">
-                            <button type="button" class="btn btn-primary" id="smrSaveProductBtn">
-                                <i class="bx bx-save"></i> Lưu sản phẩm
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" id="smrCancelProductBtn">Đóng</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tgs-smr-list" id="smrProductList"></div>
-        </section>
-
         <section class="tgs-smr-panel" data-smr-panel="create">
             <div class="tgs-smr-panel-head">
                 <div>
                     <h5>Tạo phiếu đăng ký</h5>
-                    <p>Chọn sản phẩm mới và shop con theo phân cấp multisite.</p>
+                    <p>Tìm sản phẩm global hoặc nhập sản phẩm mới, sau đó chọn shop con theo phân cấp multisite.</p>
                 </div>
             </div>
 
@@ -164,13 +83,82 @@ $current_name = TGS_SMR_Helper::current_blog_name();
             </div>
 
             <div class="tgs-smr-create-columns">
-                <div>
+                <div class="tgs-smr-create-products">
                     <div class="tgs-smr-subhead">
-                        <strong>Chọn sản phẩm</strong>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="smrRefreshProducts">Tải lại</button>
+                        <strong>Sản phẩm trong phiếu</strong>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="smrCancelProductBtn">
+                            <i class="bx bx-refresh"></i> Nhập sản phẩm mới
+                        </button>
                     </div>
-                    <div class="tgs-smr-picker" id="smrProductPicker"></div>
+
+                    <div class="tgs-smr-product-form" id="smrProductForm">
+                        <input type="hidden" id="smrProductGlobalId">
+                        <input type="hidden" id="smrProductSku">
+
+                        <div class="tgs-smr-global-lookup">
+                            <label class="form-label" for="smrGlobalSearchInput">Tìm sản phẩm global</label>
+                            <div class="tgs-smr-global-searchbox">
+                                <i class="bx bx-search"></i>
+                                <input type="search" class="form-control" id="smrGlobalSearchInput" placeholder="Gõ SKU, tên hàng hoặc barcode">
+                            </div>
+                            <div class="tgs-smr-global-results d-none" id="smrGlobalResults"></div>
+                            <div class="tgs-smr-global-selected" id="smrGlobalSelected">
+                                Sản phẩm mới chưa có SKU. Nếu cần SKU, hãy liên hệ quản trị admin để tạo sản phẩm global trước.
+                            </div>
+                        </div>
+
+                        <div class="tgs-smr-product-editor">
+                            <div class="tgs-smr-image-panel">
+                                <label class="form-label">Ảnh sản phẩm *</label>
+                                <div class="tgs-smr-image-preview is-empty" id="smrProductImagePreview">
+                                    <img src="" alt="" class="d-none" id="smrProductImage">
+                                    <div class="tgs-smr-image-placeholder" id="smrProductImagePlaceholder">
+                                        <i class="bx bx-image-add"></i>
+                                        <span>Chọn ảnh hoặc dán URL</span>
+                                    </div>
+                                </div>
+                                <div class="tgs-smr-image-actions">
+                                    <button type="button" class="btn btn-outline-primary" id="smrPickImageBtn">
+                                        <i class="bx bx-upload"></i> Chọn / upload ảnh
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="smrClearImageBtn">
+                                        <i class="bx bx-x"></i> Xóa ảnh
+                                    </button>
+                                </div>
+                                <input type="url" class="form-control" id="smrProductThumb" placeholder="Hoặc dán URL ảnh">
+                            </div>
+
+                            <div class="tgs-smr-product-fields">
+                                <div>
+                                    <label class="form-label">Tên hàng</label>
+                                    <textarea class="form-control" id="smrProductName" rows="3"></textarea>
+                                </div>
+                                <div class="tgs-smr-field-grid">
+                                    <div>
+                                        <label class="form-label">Giá đề xuất</label>
+                                        <input type="number" class="form-control" id="smrProductPrice" min="0" step="1">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Barcode NCC</label>
+                                        <input type="text" class="form-control" id="smrProductBarcode">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Mô tả</label>
+                                    <input type="text" class="form-control" id="smrProductDesc">
+                                </div>
+                                <div class="tgs-smr-form-actions">
+                                    <button type="button" class="btn btn-primary" id="smrSaveProductBtn">
+                                        <i class="bx bx-plus"></i> Thêm vào phiếu
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tgs-smr-picker tgs-smr-selected-products" id="smrProductPicker"></div>
                 </div>
+
                 <div>
                     <div class="tgs-smr-subhead">
                         <strong>Chọn shop</strong>
