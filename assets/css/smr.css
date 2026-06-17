@@ -32,10 +32,20 @@
 .tgs-smr-filter,
 .tgs-smr-form-actions,
 .tgs-smr-subhead,
+.tgs-smr-subhead-actions,
 .tgs-smr-demo-line {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.tgs-smr-subhead {
+    justify-content: space-between;
+}
+
+.tgs-smr-subhead-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .tgs-smr-tabs {
@@ -773,6 +783,173 @@ th.tgs-smr-sticky-5 {
     transform: translateY(0);
 }
 
+.tgs-smr-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+
+.tgs-smr-modal.d-none {
+    display: none;
+}
+
+.tgs-smr-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.58);
+}
+
+.tgs-smr-modal-dialog {
+    position: relative;
+    width: min(1080px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow: auto;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #dce4f0;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+    padding: 18px;
+}
+
+.tgs-smr-modal-head,
+.tgs-smr-modal-actions,
+.tgs-smr-excel-upload-line,
+.tgs-smr-import-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tgs-smr-modal-head {
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.tgs-smr-modal-head h5 {
+    margin: 0;
+    font-weight: 800;
+    color: #172033;
+}
+
+.tgs-smr-modal-head p {
+    margin: 4px 0 0;
+    color: #697a8d;
+}
+
+.tgs-smr-excel-format,
+.tgs-smr-excel-table-wrap {
+    overflow: auto;
+    border: 1px solid #dce4f0;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.tgs-smr-excel-format table,
+.tgs-smr-excel-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tgs-smr-excel-format th,
+.tgs-smr-excel-format td,
+.tgs-smr-excel-preview-table th,
+.tgs-smr-excel-preview-table td {
+    border: 1px solid #dce4f0;
+    padding: 10px 12px;
+    vertical-align: middle;
+}
+
+.tgs-smr-excel-format th,
+.tgs-smr-excel-preview-table th {
+    background: #f8fbff;
+    color: #172033;
+    font-weight: 800;
+}
+
+.tgs-smr-excel-upload {
+    margin: 16px 0;
+}
+
+.tgs-smr-excel-upload-line input {
+    min-width: 0;
+}
+
+.tgs-smr-excel-preview {
+    display: grid;
+    gap: 12px;
+}
+
+.tgs-smr-import-status {
+    min-height: 20px;
+    margin-top: 8px;
+    color: #697a8d;
+    font-weight: 700;
+}
+
+.tgs-smr-import-status.is-ok {
+    color: #087849;
+}
+
+.tgs-smr-import-status.is-error {
+    color: #be123c;
+}
+
+.tgs-smr-import-status.is-loading {
+    color: #1f5aa6;
+}
+
+.tgs-smr-import-summary {
+    justify-content: space-between;
+    flex-wrap: wrap;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid #dce4f0;
+    background: #f8fbff;
+    color: #425466;
+}
+
+.tgs-smr-import-summary.is-ok {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+}
+
+.tgs-smr-import-summary.is-error {
+    border-color: #fecdd3;
+    background: #fff1f2;
+}
+
+.tgs-smr-excel-preview-table td:first-child {
+    font-weight: 800;
+    color: #1f5aa6;
+}
+
+.tgs-smr-excel-preview-table tr.has-error td {
+    background: #fff7f7;
+    color: #7f1d1d;
+}
+
+.tgs-smr-excel-preview-table tr.is-valid td:last-child {
+    color: #087849;
+    font-weight: 800;
+}
+
+.tgs-smr-excel-preview-table img {
+    width: 54px;
+    height: 54px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.tgs-smr-modal-actions {
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
 @media (max-width: 900px) {
     .tgs-smr-toolbar,
     .tgs-smr-panel-head,
@@ -790,5 +967,19 @@ th.tgs-smr-sticky-5 {
 
     .tgs-smr-image-actions {
         grid-template-columns: 1fr;
+    }
+
+    .tgs-smr-modal {
+        padding: 10px;
+    }
+
+    .tgs-smr-modal-dialog {
+        max-height: calc(100vh - 20px);
+    }
+
+    .tgs-smr-excel-upload-line,
+    .tgs-smr-modal-actions {
+        align-items: stretch;
+        flex-direction: column;
     }
 }

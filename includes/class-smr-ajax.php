@@ -19,6 +19,7 @@ class TGS_SMR_Ajax
             'delete_item' => 'delete_item',
             'apply_request' => 'apply_request',
             'search_global_products' => 'search_global_products',
+            'import_products_excel' => 'import_products_excel',
             'payload_shops' => 'payload_shops',
         ];
 
@@ -250,6 +251,23 @@ class TGS_SMR_Ajax
         ), ARRAY_A);
 
         wp_send_json_success(['items' => $rows ?: []]);
+    }
+
+    public static function import_products_excel()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+
+        if (!TGS_SMR_Helper::is_warehouse_blog(get_current_blog_id())) {
+            wp_send_json_error(['message' => 'Chá»‰ kho táº¡o phiáº¿u má»›i Ä‘Æ°á»£c nháº­p Excel.'], 403);
+        }
+
+        $result = TGS_SMR_Xlsx_Importer::import_uploaded_file($_FILES['file'] ?? null);
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+
+        wp_send_json_success($result);
     }
 
     public static function payload_shops()

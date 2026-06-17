@@ -86,9 +86,14 @@ $current_name = TGS_SMR_Helper::current_blog_name();
                 <div class="tgs-smr-create-products">
                     <div class="tgs-smr-subhead">
                         <strong>Sản phẩm trong phiếu</strong>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="smrCancelProductBtn">
-                            <i class="bx bx-refresh"></i> Nhập sản phẩm mới
-                        </button>
+                        <div class="tgs-smr-subhead-actions">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="smrOpenExcelImportBtn">
+                                <i class="bx bx-import"></i> Nhập Excel
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="smrCancelProductBtn">
+                                <i class="bx bx-refresh"></i> Nhập sản phẩm mới
+                            </button>
+                        </div>
                     </div>
 
                     <div class="tgs-smr-product-form" id="smrProductForm">
@@ -207,5 +212,63 @@ $current_name = TGS_SMR_Helper::current_blog_name();
         <div class="tgs-smr-log" id="smrLog"></div>
     </section>
 </div>
+
+<?php if ($is_warehouse): ?>
+    <div class="tgs-smr-modal d-none" id="smrExcelModal" aria-hidden="true">
+        <div class="tgs-smr-modal-backdrop" data-smr-excel-close></div>
+        <div class="tgs-smr-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="smrExcelModalTitle">
+            <div class="tgs-smr-modal-head">
+                <div>
+                    <h5 id="smrExcelModalTitle">Nhập sản phẩm từ Excel</h5>
+                    <p>File .xlsx gồm 4 cột, ảnh đặt trực tiếp trong cột Hình ảnh.</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-smr-excel-close>
+                    <i class="bx bx-x"></i>
+                </button>
+            </div>
+
+            <div class="tgs-smr-excel-format">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã BARCODE</th>
+                            <th>Tên hàng</th>
+                            <th>Hình ảnh</th>
+                            <th>Giá bán lẻ đề xuất</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Không bắt buộc</td>
+                            <td>Bắt buộc</td>
+                            <td>Bắt buộc</td>
+                            <td>Bắt buộc, có thể bằng 0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="tgs-smr-excel-upload">
+                <label class="form-label" for="smrExcelFile">Chọn file Excel</label>
+                <div class="tgs-smr-excel-upload-line">
+                    <input type="file" class="form-control" id="smrExcelFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                    <button type="button" class="btn btn-primary" id="smrExcelCheckBtn">
+                        <i class="bx bx-check-shield"></i> Kiểm tra dữ liệu
+                    </button>
+                </div>
+                <div class="tgs-smr-import-status" id="smrExcelStatus"></div>
+            </div>
+
+            <div class="tgs-smr-excel-preview" id="smrExcelPreview"></div>
+
+            <div class="tgs-smr-modal-actions">
+                <button type="button" class="btn btn-outline-secondary" data-smr-excel-close>Đóng</button>
+                <button type="button" class="btn btn-success" id="smrExcelImportBtn" disabled>
+                    <i class="bx bx-plus"></i> Import vào phiếu
+                </button>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="tgs-smr-toast" id="smrToast"></div>

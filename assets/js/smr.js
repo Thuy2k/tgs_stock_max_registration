@@ -9,6 +9,7 @@
         imageFrame: null,
         globalSearchSeq: 0,
         saveTimers: {},
+        excelImportItems: [],
         selectedProducts: []
     };
 
@@ -21,6 +22,29 @@
                 action: 'tgs_smr_' + action,
                 nonce: TgsSmr.nonce
             }, data || {})
+        }).then(function (res) {
+            if (!res || !res.success) {
+                return $.Deferred().reject(res && res.data && res.data.message ? res.data.message : 'Có lỗi xảy ra.').promise();
+            }
+            return res.data;
+        }, function (xhr) {
+            var msg = xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message
+                ? xhr.responseJSON.data.message
+                : 'Không kết nối được máy chủ.';
+            return $.Deferred().reject(msg).promise();
+        });
+    }
+
+    function ajaxUpload(action, formData) {
+        formData.append('action', 'tgs_smr_' + action);
+        formData.append('nonce', TgsSmr.nonce);
+        return $.ajax({
+            url: TgsSmr.ajaxUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: formData,
+            processData: false,
+            contentType: false
         }).then(function (res) {
             if (!res || !res.success) {
                 return $.Deferred().reject(res && res.data && res.data.message ? res.data.message : 'Có lỗi xảy ra.').promise();
@@ -50,8 +74,10 @@
     }
 
     function money(value) {
+        if (value === null || value === undefined || value === '') return '';
         var n = Number(value || 0);
-        return n ? n.toLocaleString('vi-VN') + ' đ' : '';
+        if (Number.isNaN(n)) return '';
+        return n.toLocaleString('vi-VN') + ' đ';
     }
 
     function qty(value) {
@@ -219,6 +245,10 @@
         hideGlobalResults();
     }
 
+    function productClientId(prefix) {
+        return (prefix || 'p') + '_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    }
+
     function renderProductPicker() {
         var $picker = $('#smrProductPicker');
         if (!$picker.length) return;
@@ -238,6 +268,114 @@
                 '<button type="button" class="btn btn-sm btn-outline-danger smr-remove-selected-product" data-product-key="' + esc(p.client_id) + '"><i class="bx bx-trash"></i></button>' +
             '</div>';
         }).join(''));
+    }
+
+    function setExcelStatus(message, type) {
+        $('#smrExcelStatus')
+            .removeClass('is-ok is-error is-loading')
+            .addClass(type ? 'is-' + type : '')
+            .text(message || '');
+    }
+
+    function resetExcelImportState(clearFile) {
+        state.excelImportItems = [];
+        $('#smrExcelImportBtn').prop('disabled', true);
+        $('#smrExcelPreview').empty();
+        setExcelStatus('', '');
+        if (clearFile) {
+            $('#smrExcelFile').val('');
+        }
+    }
+
+    function openExcelImportModal() {
+        resetExcelImportState(true);
+        $('#smrExcelModal').removeClass('d-none').attr('aria-hidden', 'false');
+    }
+
+    function closeExcelImportModal() {
+        $('#smrExcelModal').addClass('d-none').attr('aria-hidden', 'true');
+    }
+
+    function renderExcelPreview(data) {
+        var rows = data.rows || [];
+        var total = Number(data.total_rows || 0);
+        var errors = Number(data.error_count || 0);
+        var valid = Number(data.valid_count || 0);
+        var previewLimit = Number(data.preview_limit || rows.length || 0);
+        var canImport = valid > 0 && errors === 0;
+        state.excelImportItems = data.items || [];
+        $('#smrExcelImportBtn').prop('disabled', !canImport);
+
+        var summaryClass = errors ? 'is-error' : 'is-ok';
+        var summary = '<div class="tgs-smr-import-summary ' + summaryClass + '">' +
+            '<strong>' + esc(valid) + '/' + esc(total) + ' dòng hợp lệ</strong>' +
+            '<span>Ảnh đã upload: ' + esc(data.uploaded_images || 0) + '</span>';
+        if (total > rows.length) {
+            summary += '<span>Đang xem trước ' + esc(rows.length) + '/' + esc(total) + ' dòng đầu.</span>';
+        }
+        summary += '</div>';
+
+        if (!rows.length) {
+            $('#smrExcelPreview').html(summary);
+            return;
+        }
+
+        var table = '<div class="tgs-smr-excel-table-wrap"><table class="tgs-smr-excel-preview-table">' +
+            '<thead><tr>' +
+                '<th>Dòng</th>' +
+                '<th>Mã BARCODE</th>' +
+                '<th>Tên hàng</th>' +
+                '<th>Hình ảnh</th>' +
+                '<th>Giá bán lẻ đề xuất</th>' +
+                '<th>Kiểm tra</th>' +
+            '</tr></thead><tbody>';
+
+        rows.forEach(function (row) {
+            var rowErrors = row.errors || [];
+            var price = Number(row.suggested_price || 0);
+            table += '<tr class="' + (rowErrors.length ? 'has-error' : 'is-valid') + '">' +
+                '<td>' + esc(row.row_number || '') + '</td>' +
+                '<td>' + esc(row.supplier_barcode || '') + '</td>' +
+                '<td>' + esc(row.product_name || '') + '</td>' +
+                '<td>' + (row.thumbnail_url ? '<img src="' + esc(row.thumbnail_url) + '" alt="">' : '-') + '</td>' +
+                '<td>' + esc(price.toLocaleString('vi-VN')) + ' đ</td>' +
+                '<td>' + (rowErrors.length ? esc(rowErrors.join('; ')) : 'OK') + '</td>' +
+            '</tr>';
+        });
+
+        table += '</tbody></table></div>';
+        $('#smrExcelPreview').html(summary + table);
+
+        if (canImport) {
+            setExcelStatus('Dữ liệu hợp lệ, có thể import vào phiếu.', 'ok');
+        } else {
+            setExcelStatus('File còn dòng lỗi. Vui lòng sửa Excel rồi kiểm tra lại.', 'error');
+        }
+    }
+
+    function importExcelItemsToRequest() {
+        if (!state.excelImportItems.length) {
+            toast('Chưa có dữ liệu Excel hợp lệ để import.');
+            return;
+        }
+
+        state.excelImportItems.forEach(function (item) {
+            state.selectedProducts.push({
+                client_id: productClientId('excel'),
+                global_product_name_id: item.global_product_name_id || '',
+                product_sku: item.product_sku || '',
+                product_name: item.product_name || '',
+                thumbnail_url: item.thumbnail_url || '',
+                suggested_price: item.suggested_price,
+                supplier_barcode: item.supplier_barcode || '',
+                product_description: item.product_description || ''
+            });
+        });
+        var count = state.excelImportItems.length;
+        renderProductPicker();
+        closeExcelImportModal();
+        resetExcelImportState(true);
+        toast('Đã import ' + count + ' sản phẩm vào phiếu');
     }
 
     function loadShops() {
@@ -573,6 +711,42 @@
         $('#smrRequestStatus').on('change', loadRequests);
         $('#smrRequestSearch').on('input', debounce(loadRequests, 300));
         $('#smrCancelProductBtn').on('click', resetProductForm);
+        $('#smrOpenExcelImportBtn').on('click', openExcelImportModal);
+        $('[data-smr-excel-close]').on('click', closeExcelImportModal);
+        $('#smrExcelFile').on('change', function () {
+            resetExcelImportState(false);
+        });
+        $('#smrExcelCheckBtn').on('click', function () {
+            var fileInput = $('#smrExcelFile')[0];
+            var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+            if (!file) {
+                setExcelStatus('Vui lòng chọn file Excel .xlsx.', 'error');
+                return;
+            }
+            if (!/\.xlsx$/i.test(file.name || '')) {
+                setExcelStatus('Chỉ hỗ trợ file .xlsx.', 'error');
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('file', file);
+            $('#smrExcelCheckBtn').prop('disabled', true);
+            $('#smrExcelImportBtn').prop('disabled', true);
+            $('#smrExcelPreview').empty();
+            setExcelStatus('Đang đọc file, upload ảnh và kiểm tra dữ liệu...', 'loading');
+
+            ajaxUpload('import_products_excel', formData).then(function (data) {
+                renderExcelPreview(data);
+            }, function (message) {
+                state.excelImportItems = [];
+                $('#smrExcelImportBtn').prop('disabled', true);
+                $('#smrExcelPreview').empty();
+                setExcelStatus(message, 'error');
+            }).always(function () {
+                $('#smrExcelCheckBtn').prop('disabled', false);
+            });
+        });
+        $('#smrExcelImportBtn').on('click', importExcelItemsToRequest);
         $('#smrPickImageBtn, #smrProductImagePreview').on('click', openImagePicker);
         $('#smrClearImageBtn').on('click', function () { setProductImage(''); });
         $('#smrProductThumb').on('input change', updateProductImagePreview);
@@ -606,7 +780,7 @@
                 return;
             }
             state.selectedProducts.push({
-                client_id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+                client_id: productClientId('p'),
                 global_product_name_id: $('#smrProductGlobalId').val() || '',
                 product_sku: $('#smrProductSku').val() || '',
                 product_name: productName,
