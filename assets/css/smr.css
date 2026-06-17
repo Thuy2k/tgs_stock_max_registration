@@ -1,0 +1,404 @@
+.tgs-smr-app {
+    padding: 22px;
+    background: #f6f8fb;
+    min-height: calc(100vh - 140px);
+}
+
+.tgs-smr-toolbar,
+.tgs-smr-panel,
+.tgs-smr-product-form {
+    background: #fff;
+    border: 1px solid #e5eaf2;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.tgs-smr-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    padding: 18px 20px;
+}
+
+.tgs-smr-toolbar h4,
+.tgs-smr-panel h5 {
+    margin: 0;
+    font-weight: 800;
+    color: #172033;
+}
+
+.tgs-smr-actions,
+.tgs-smr-filter,
+.tgs-smr-form-actions,
+.tgs-smr-subhead,
+.tgs-smr-demo-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tgs-smr-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0;
+    overflow-x: auto;
+}
+
+.tgs-smr-tabs button {
+    border: 1px solid #dce4f0;
+    border-radius: 7px;
+    background: #fff;
+    color: #50627a;
+    padding: 9px 14px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tgs-smr-tabs button.active {
+    background: #1f5aa6;
+    color: #fff;
+    border-color: #1f5aa6;
+}
+
+.tgs-smr-panel {
+    display: none;
+    padding: 18px;
+}
+
+.tgs-smr-panel.active {
+    display: block;
+}
+
+.tgs-smr-panel-head,
+.tgs-smr-review-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.tgs-smr-panel-head p,
+.tgs-smr-review-head p {
+    margin: 4px 0 0;
+    color: #697a8d;
+}
+
+.tgs-smr-list {
+    display: grid;
+    gap: 10px;
+}
+
+.tgs-smr-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    background: #fff;
+}
+
+.tgs-smr-card strong {
+    color: #172033;
+}
+
+.tgs-smr-card small {
+    color: #697a8d;
+}
+
+.tgs-smr-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 800;
+    background: #eef4ff;
+    color: #1f5aa6;
+}
+
+.tgs-smr-badge.status-open {
+    background: #e8fff4;
+    color: #087849;
+}
+
+.tgs-smr-badge.status-approved {
+    background: #eef4ff;
+    color: #1f5aa6;
+}
+
+.tgs-smr-badge.status-cancelled {
+    background: #fff1f2;
+    color: #be123c;
+}
+
+.tgs-smr-badge.status-applied {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.tgs-smr-product-form {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.tgs-smr-form-actions {
+    justify-content: flex-end;
+    margin-top: 14px;
+}
+
+.tgs-smr-create-grid {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.tgs-smr-create-columns {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(320px, 1fr);
+    gap: 18px;
+}
+
+.tgs-smr-picker {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    min-height: 260px;
+    max-height: 420px;
+    overflow: auto;
+    padding: 10px;
+    background: #fbfdff;
+}
+
+.tgs-smr-pick-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 9px;
+    border-radius: 7px;
+}
+
+.tgs-smr-pick-row:hover {
+    background: #eef4ff;
+}
+
+.tgs-smr-checkline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: #425466;
+    font-weight: 600;
+}
+
+.tgs-smr-demo-line {
+    margin-top: 10px;
+}
+
+.tgs-smr-demo-line input {
+    max-width: 110px;
+}
+
+.tgs-smr-matrix-wrap {
+    border: 1px solid #cfd7e3;
+    border-radius: 8px;
+    overflow: auto;
+    max-height: 68vh;
+    background: #fff;
+}
+
+.tgs-smr-matrix {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 100%;
+    table-layout: fixed;
+}
+
+.tgs-smr-matrix th,
+.tgs-smr-matrix td {
+    border-right: 1px solid #222;
+    border-bottom: 1px solid #222;
+    padding: 6px;
+    vertical-align: middle;
+    background: #fff;
+}
+
+.tgs-smr-matrix th {
+    font-family: "Times New Roman", serif;
+    font-size: 18px;
+    font-weight: 800;
+    text-align: center;
+    color: #000;
+    position: sticky;
+    top: 0;
+    z-index: 7;
+}
+
+.tgs-smr-matrix thead tr:nth-child(2) th {
+    top: 38px;
+}
+
+.tgs-smr-matrix .col-sku {
+    min-width: 138px;
+    width: 138px;
+}
+
+.tgs-smr-matrix .col-name {
+    min-width: 330px;
+    width: 330px;
+}
+
+.tgs-smr-matrix .col-image {
+    min-width: 170px;
+    width: 170px;
+}
+
+.tgs-smr-matrix .col-price,
+.tgs-smr-matrix .col-total,
+.tgs-smr-matrix .col-shop {
+    min-width: 112px;
+    width: 112px;
+}
+
+.tgs-smr-sticky-1,
+.tgs-smr-sticky-2,
+.tgs-smr-sticky-3,
+.tgs-smr-sticky-4,
+.tgs-smr-sticky-5 {
+    position: sticky;
+    z-index: 5;
+    background: #fff;
+}
+
+th.tgs-smr-sticky-1,
+th.tgs-smr-sticky-2,
+th.tgs-smr-sticky-3,
+th.tgs-smr-sticky-4,
+th.tgs-smr-sticky-5 {
+    z-index: 9;
+}
+
+.tgs-smr-sticky-1 {
+    left: 0;
+}
+
+.tgs-smr-sticky-2 {
+    left: 138px;
+}
+
+.tgs-smr-sticky-3 {
+    left: 468px;
+}
+
+.tgs-smr-sticky-4 {
+    left: 638px;
+}
+
+.tgs-smr-sticky-5 {
+    left: 750px;
+    box-shadow: 4px 0 8px rgba(15, 23, 42, 0.08);
+}
+
+.tgs-smr-matrix tbody td {
+    height: 128px;
+    font-size: 15px;
+}
+
+.tgs-smr-matrix .product-name {
+    font-size: 20px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    color: #000;
+}
+
+.tgs-smr-matrix .price,
+.tgs-smr-matrix .total {
+    font-size: 20px;
+    font-weight: 800;
+    text-align: center;
+    color: #000;
+}
+
+.tgs-smr-product-img {
+    width: 112px;
+    height: 112px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.tgs-smr-cell-input {
+    width: 78px;
+    border: 1px solid #cfd7e3;
+    border-radius: 6px;
+    padding: 6px;
+    text-align: center;
+    font-weight: 800;
+}
+
+.tgs-smr-cell-note {
+    width: 100%;
+    margin-top: 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+.tgs-smr-cell-readonly {
+    text-align: center;
+    font-weight: 800;
+    font-size: 18px;
+    color: #000;
+}
+
+.tgs-smr-log {
+    margin-top: 14px;
+    display: grid;
+    gap: 8px;
+}
+
+.tgs-smr-log-row {
+    border-left: 3px solid #1f5aa6;
+    background: #f8fbff;
+    padding: 8px 10px;
+    color: #425466;
+    border-radius: 6px;
+}
+
+.tgs-smr-toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    background: #111827;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition: 0.2s ease;
+    z-index: 99999;
+}
+
+.tgs-smr-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (max-width: 900px) {
+    .tgs-smr-toolbar,
+    .tgs-smr-panel-head,
+    .tgs-smr-review-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tgs-smr-create-grid,
+    .tgs-smr-create-columns {
+        grid-template-columns: 1fr;
+    }
+}
