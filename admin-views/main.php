@@ -6,6 +6,10 @@ if (!defined('ABSPATH')) {
 $current_blog_id = get_current_blog_id();
 $is_warehouse = TGS_SMR_Helper::is_warehouse_blog($current_blog_id);
 $current_name = TGS_SMR_Helper::current_blog_name();
+$import_template_url = wp_nonce_url(
+    admin_url('admin-post.php?action=tgs_smr_download_import_template'),
+    'tgs_smr_import_template'
+);
 ?>
 
 <div class="tgs-smr-app" id="tgs-smr-app" data-is-warehouse="<?php echo esc_attr($is_warehouse ? '1' : '0'); ?>">
@@ -249,7 +253,12 @@ $current_name = TGS_SMR_Helper::current_blog_name();
             </div>
 
             <div class="tgs-smr-excel-upload">
-                <label class="form-label" for="smrExcelFile">Chọn file Excel</label>
+                <div class="tgs-smr-excel-upload-head">
+                    <label class="form-label" for="smrExcelFile">Chọn file Excel</label>
+                    <a class="btn btn-sm btn-outline-primary" href="<?php echo esc_url($import_template_url); ?>">
+                        <i class="bx bx-download"></i> Tải mẫu Excel
+                    </a>
+                </div>
                 <div class="tgs-smr-excel-upload-line">
                     <input type="file" class="form-control" id="smrExcelFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                     <button type="button" class="btn btn-primary" id="smrExcelCheckBtn">

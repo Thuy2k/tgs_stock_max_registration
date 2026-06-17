@@ -873,6 +873,18 @@ th.tgs-smr-sticky-5 {
     margin: 16px 0;
 }
 
+.tgs-smr-excel-upload-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.tgs-smr-excel-upload-head .form-label {
+    margin: 0;
+}
+
 .tgs-smr-excel-upload-line input {
     min-width: 0;
 }
@@ -978,6 +990,7 @@ th.tgs-smr-sticky-5 {
     }
 
     .tgs-smr-excel-upload-line,
+    .tgs-smr-excel-upload-head,
     .tgs-smr-modal-actions {
         align-items: stretch;
         flex-direction: column;

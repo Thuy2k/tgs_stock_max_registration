@@ -6,6 +6,43 @@ if (!defined('ABSPATH')) {
 
 class TGS_SMR_Xlsx_Writer
 {
+    public static function build_import_template_workbook()
+    {
+        $rows = self::import_template_rows();
+        $images = [];
+        $sheet_xml = self::build_import_template_sheet_xml($rows, $images);
+        $tmp = wp_tempnam('tgs-smr-import-template.xlsx');
+        if (!$tmp) {
+            $tmp = tempnam(sys_get_temp_dir(), 'tgs-smr-template-');
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($tmp, ZipArchive::OVERWRITE) !== true) {
+            return '';
+        }
+
+        $zip->addFromString('[Content_Types].xml', self::content_types_xml(true, $images));
+        $zip->addFromString('_rels/.rels', self::root_rels_xml());
+        $zip->addFromString('docProps/core.xml', self::core_xml(['request_title' => 'Mẫu nhập sản phẩm đăng ký max']));
+        $zip->addFromString('docProps/app.xml', self::app_xml());
+        $zip->addFromString('xl/workbook.xml', self::workbook_xml());
+        $zip->addFromString('xl/_rels/workbook.xml.rels', self::workbook_rels_xml());
+        $zip->addFromString('xl/styles.xml', self::styles_xml());
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheet_xml);
+        $zip->addFromString('xl/worksheets/_rels/sheet1.xml.rels', self::sheet_rels_xml());
+        $zip->addFromString('xl/drawings/drawing1.xml', self::drawing_xml($images));
+        $zip->addFromString('xl/drawings/_rels/drawing1.xml.rels', self::drawing_rels_xml($images));
+        foreach ($images as $image) {
+            $zip->addFromString('xl/media/' . $image['file_name'], $image['bytes']);
+        }
+
+        $zip->close();
+        $binary = file_get_contents($tmp);
+        @unlink($tmp);
+
+        return $binary ?: '';
+    }
+
     public static function build_request_workbook($data)
     {
         $request = $data['request'];
@@ -49,6 +86,102 @@ class TGS_SMR_Xlsx_Writer
         @unlink($tmp);
 
         return $binary ?: '';
+    }
+
+    private static function build_import_template_sheet_xml($rows_data, &$images)
+    {
+        $rows = [];
+        $rows[] = self::row_xml(1, [
+            self::cell(1, 1, 'Mã BARCODE', 's', 1),
+            self::cell(1, 2, 'Tên hàng', 's', 1),
+            self::cell(1, 3, 'Hình ảnh', 's', 1),
+            self::cell(1, 4, 'Giá bán lẻ đề xuất', 's', 1),
+        ], 28);
+
+        $row_num = 2;
+        foreach ($rows_data as $row) {
+            $rows[] = '<row r="' . $row_num . '" ht="132" customHeight="1">'
+                . self::cell($row_num, 1, $row['barcode'], 's', 5)
+                . self::cell($row_num, 2, $row['name'], 's', 6)
+                . self::cell($row_num, 3, 'Ảnh demo', 's', 7)
+                . self::cell($row_num, 4, $row['price'], 'n', 8)
+                . '</row>';
+
+            $images[] = [
+                'bytes' => self::demo_image_png($row['color'], $row['label']),
+                'ext' => 'png',
+                'width' => 120,
+                'height' => 120,
+                'row' => $row_num,
+                'col' => 3,
+                'id' => count($images) + 1,
+                'file_name' => 'image' . (count($images) + 1) . '.png',
+            ];
+            $row_num++;
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            . 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheetViews><sheetView workbookViewId="0"><pane xSplit="4" ySplit="1" topLeftCell="E2" activePane="bottomRight" state="frozen"/><selection pane="bottomRight" activeCell="E2" sqref="E2"/></sheetView></sheetViews>'
+            . '<sheetFormatPr defaultRowHeight="18"/>'
+            . '<cols><col min="1" max="1" width="22" customWidth="1"/><col min="2" max="2" width="42" customWidth="1"/><col min="3" max="3" width="20" customWidth="1"/><col min="4" max="4" width="26" customWidth="1"/></cols>'
+            . '<sheetData>' . implode('', $rows) . '</sheetData>'
+            . '<pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>'
+            . '<drawing r:id="rId1"/>'
+            . '</worksheet>';
+    }
+
+    private static function import_template_rows()
+    {
+        return [
+            [
+                'barcode' => '8930000000012',
+                'name' => 'Sản phẩm demo A 400g',
+                'price' => 380000,
+                'color' => '#1F5AA6',
+                'label' => 'A',
+            ],
+            [
+                'barcode' => '8930000000029',
+                'name' => 'Sản phẩm demo B 800g',
+                'price' => 420000,
+                'color' => '#16A34A',
+                'label' => 'B',
+            ],
+        ];
+    }
+
+    private static function demo_image_png($color, $label)
+    {
+        if (function_exists('imagecreatetruecolor')) {
+            $hex = ltrim((string) $color, '#');
+            $r = hexdec(substr($hex, 0, 2));
+            $g = hexdec(substr($hex, 2, 2));
+            $b = hexdec(substr($hex, 4, 2));
+            $im = imagecreatetruecolor(160, 160);
+            $white = imagecolorallocate($im, 255, 255, 255);
+            $accent = imagecolorallocate($im, $r, $g, $b);
+            $soft = imagecolorallocate($im, min(255, $r + 70), min(255, $g + 70), min(255, $b + 70));
+            $dark = imagecolorallocate($im, 31, 41, 55);
+            imagefilledrectangle($im, 0, 0, 159, 159, $white);
+            imagefilledellipse($im, 80, 76, 112, 112, $soft);
+            imagefilledellipse($im, 80, 76, 82, 82, $accent);
+            imagefilledrectangle($im, 48, 114, 112, 128, $accent);
+            imagestring($im, 5, 73, 64, (string) $label, $white);
+            imagestring($im, 3, 50, 136, 'DEMO', $dark);
+            ob_start();
+            imagepng($im);
+            $bytes = ob_get_clean();
+            imagedestroy($im);
+            if ($bytes) {
+                return $bytes;
+            }
+        }
+
+        return base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAIAAABY6wU0AAABMElEQVR4nO3QQQ3AIADAQEDYf8eVQwEUciufB3S3zNx5Y8A7BKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqACoAKgAqADc3gFoZwJhs9G2IAAAAABJRU5ErkJggg=='
+        );
     }
 
     private static function build_sheet_xml($request, $items, $shops, $values, &$images)

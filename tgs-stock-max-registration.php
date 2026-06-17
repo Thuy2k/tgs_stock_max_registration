@@ -3,7 +3,7 @@
  * Plugin Name: TGS Stock Max Registration
  * Plugin URI: https://bizgpt.vn/
  * Description: Quy trình kho tạo phiếu đăng ký tồn max sản phẩm mới cho các shop con.
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: BIZGPT_AI
  * Author URI: https://bizgpt.vn/
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('TGS_SMR_VERSION', '1.0.3');
+define('TGS_SMR_VERSION', '1.0.4');
 define('TGS_SMR_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TGS_SMR_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -52,6 +52,7 @@ class TGS_Stock_Max_Registration
         add_filter('tgs_shop_workflow_nav', [$this, 'add_workflow_nav'], 20, 2);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('admin_post_tgs_smr_export_request', [$this, 'export_request']);
+        add_action('admin_post_tgs_smr_download_import_template', [$this, 'download_import_template']);
 
         TGS_SMR_Ajax::init();
     }
@@ -160,6 +161,42 @@ class TGS_Stock_Max_Registration
             }
         }
 
+        nocache_headers();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
+        header('Content-Length: ' . strlen($binary));
+        header('X-Content-Type-Options: nosniff');
+        echo $binary;
+        exit;
+    }
+
+    public function download_import_template()
+    {
+        $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'tgs_smr_import_template')) {
+            wp_die('Link tải mẫu Excel không hợp lệ.', 403);
+        }
+
+        if (!is_user_logged_in()) {
+            wp_die('Bạn cần đăng nhập.', 403);
+        }
+
+        if (!TGS_SMR_Helper::is_warehouse_blog(get_current_blog_id()) && !current_user_can('manage_options')) {
+            wp_die('Chỉ kho tạo phiếu mới được tải mẫu nhập Excel.', 403);
+        }
+
+        $binary = TGS_SMR_Xlsx_Writer::build_import_template_workbook();
+        if ($binary === '') {
+            wp_die('Không tạo được file mẫu Excel.', 500);
+        }
+
+        while (ob_get_level() > 0) {
+            if (!@ob_end_clean()) {
+                break;
+            }
+        }
+
+        $filename = 'mau-nhap-san-pham-dang-ky-max.xlsx';
         nocache_headers();
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
