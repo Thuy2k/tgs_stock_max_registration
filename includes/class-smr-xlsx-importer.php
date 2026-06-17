@@ -269,7 +269,7 @@ class TGS_SMR_Xlsx_Importer
 
     private static function drawing_image_map($zip, $drawing_path, $images)
     {
-        $drawing = self::read_xml($zip, $drawing_path);
+        $drawing = self::read_dom($zip, $drawing_path);
         if (!$drawing) {
             return $images;
         }
@@ -279,28 +279,24 @@ class TGS_SMR_Xlsx_Importer
             return $images;
         }
 
-        $drawing->registerXPathNamespace('xdr', self::NS_DRAWING);
-        $anchors = array_merge(
-            $drawing->xpath('//xdr:oneCellAnchor') ?: [],
-            $drawing->xpath('//xdr:twoCellAnchor') ?: []
-        );
+        $xpath = new DOMXPath($drawing);
+        $anchors = $xpath->query('//*[local-name()="oneCellAnchor" or local-name()="twoCellAnchor"]');
+        if (!$anchors || !$anchors->length) {
+            return $images;
+        }
 
         foreach ($anchors as $anchor) {
-            $anchor->registerXPathNamespace('xdr', self::NS_DRAWING);
-            $anchor->registerXPathNamespace('a', self::NS_A);
-            $from = $anchor->xpath('./xdr:from') ?: [];
-            if (empty($from)) {
-                continue;
-            }
-
-            $from[0]->registerXPathNamespace('xdr', self::NS_DRAWING);
-            $from_col = (int) self::first_xpath_text($from[0], './xdr:col');
-            $from_row = (int) self::first_xpath_text($from[0], './xdr:row');
-            $to = $anchor->xpath('./xdr:to') ?: [];
+            $from_col = (int) self::dom_first_text($xpath, $anchor, './*[local-name()="from"]/*[local-name()="col"]');
+            $from_row = (int) self::dom_first_text($xpath, $anchor, './*[local-name()="from"]/*[local-name()="row"]');
             $to_col = $from_col;
-            if (!empty($to)) {
-                $to[0]->registerXPathNamespace('xdr', self::NS_DRAWING);
-                $to_col = (int) self::first_xpath_text($to[0], './xdr:col');
+            $to_row = $from_row;
+            $to_col_text = self::dom_first_text($xpath, $anchor, './*[local-name()="to"]/*[local-name()="col"]');
+            $to_row_text = self::dom_first_text($xpath, $anchor, './*[local-name()="to"]/*[local-name()="row"]');
+            if ($to_col_text !== '') {
+                $to_col = (int) $to_col_text;
+            }
+            if ($to_row_text !== '') {
+                $to_row = (int) $to_row_text;
             }
 
             $covers_image_column = $from_col === 2 || ($from_col <= 2 && $to_col >= 2);
@@ -308,24 +304,81 @@ class TGS_SMR_Xlsx_Importer
                 continue;
             }
 
-            $blips = $anchor->xpath('.//a:blip') ?: [];
-            if (empty($blips)) {
+            $blips = $xpath->query('.//*[local-name()="blip"]', $anchor);
+            if (!$blips || !$blips->length) {
                 continue;
             }
 
-            $attrs = $blips[0]->attributes(self::NS_REL);
-            $rid = (string) ($attrs['embed'] ?? '');
+            $rid = self::blip_relationship_id($blips->item(0));
             if ($rid === '' || empty($drawing_rels[$rid]['target'])) {
                 continue;
             }
 
             $row_number = $from_row + 1;
+            if ($row_number <= 1 && $to_row >= 1) {
+                $row_number = 2;
+            }
             if (empty($images[$row_number])) {
                 $images[$row_number] = self::resolve_target($drawing_path, $drawing_rels[$rid]['target']);
             }
         }
 
         return $images;
+    }
+
+    private static function blip_relationship_id($blip)
+    {
+        if ($blip instanceof DOMElement) {
+            $rid = $blip->getAttributeNS(self::NS_REL, 'embed');
+            if ($rid === '') {
+                $rid = $blip->getAttributeNS(self::NS_REL, 'link');
+            }
+            if ($rid === '') {
+                $rid = $blip->getAttribute('r:embed') ?: $blip->getAttribute('embed');
+            }
+            if ($rid === '') {
+                $rid = $blip->getAttribute('r:link') ?: $blip->getAttribute('link');
+            }
+            return (string) $rid;
+        }
+
+        foreach ($blip->attributes() as $name => $value) {
+            if ($name === 'embed' || $name === 'link') {
+                return (string) $value;
+            }
+        }
+
+        foreach ($blip->getNamespaces(true) as $namespace) {
+            foreach ($blip->attributes($namespace) as $name => $value) {
+                if ($name === 'embed' || $name === 'link') {
+                    return (string) $value;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private static function read_dom($zip, $path)
+    {
+        $content = $zip->getFromName($path);
+        if ($content === false || $content === '') {
+            return null;
+        }
+
+        $dom = new DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($content, LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return $loaded ? $dom : null;
+    }
+
+    private static function dom_first_text($xpath, $context, $query)
+    {
+        $nodes = $xpath->query($query, $context);
+        return ($nodes && $nodes->length) ? (string) $nodes->item(0)->textContent : '';
     }
 
     private static function upload_image_from_zip($zip, $path, $row_number, &$cache)
