@@ -3,7 +3,7 @@
  * Plugin Name: TGS Stock Max Registration
  * Plugin URI: https://bizgpt.vn/
  * Description: Quy trình kho tạo phiếu đăng ký tồn max sản phẩm mới cho các shop con.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: BIZGPT_AI
  * Author URI: https://bizgpt.vn/
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('TGS_SMR_VERSION', '1.0.0');
+define('TGS_SMR_VERSION', '1.0.1');
 define('TGS_SMR_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TGS_SMR_PLUGIN_URL', plugin_dir_url(__FILE__));
 
