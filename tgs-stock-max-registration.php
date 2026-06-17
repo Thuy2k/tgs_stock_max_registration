@@ -111,6 +111,8 @@ class TGS_Stock_Max_Registration
             return;
         }
 
+        wp_enqueue_media();
+
         wp_enqueue_style(
             'tgs-smr',
             TGS_SMR_PLUGIN_URL . 'assets/css/smr.css',

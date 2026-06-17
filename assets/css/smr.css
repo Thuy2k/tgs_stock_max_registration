@@ -93,7 +93,7 @@
 .tgs-smr-card {
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 14px;
+    padding: 12px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -143,6 +143,77 @@
 .tgs-smr-product-form {
     padding: 16px;
     margin-bottom: 16px;
+}
+
+.tgs-smr-product-editor {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.tgs-smr-image-panel,
+.tgs-smr-product-fields {
+    display: grid;
+    gap: 12px;
+}
+
+.tgs-smr-image-preview {
+    aspect-ratio: 1 / 1;
+    border: 1px solid #d6e0ef;
+    border-radius: 8px;
+    background: #f8fbff;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.tgs-smr-image-preview:hover {
+    border-color: #1f5aa6;
+    background: #eef4ff;
+}
+
+.tgs-smr-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #fff;
+}
+
+.tgs-smr-image-placeholder {
+    display: grid;
+    gap: 8px;
+    place-items: center;
+    color: #697a8d;
+    font-weight: 700;
+    text-align: center;
+}
+
+.tgs-smr-image-placeholder i {
+    font-size: 34px;
+    color: #1f5aa6;
+}
+
+.tgs-smr-image-actions {
+    display: grid;
+    grid-template-columns: 1fr 96px;
+    gap: 8px;
+}
+
+.tgs-smr-product-fields {
+    min-width: 0;
+}
+
+.tgs-smr-field-grid {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(170px, 1fr) 132px;
+    gap: 12px;
+    align-items: end;
+}
+
+.tgs-smr-global-search .btn {
+    width: 100%;
 }
 
 .tgs-smr-form-actions {
@@ -330,6 +401,13 @@ th.tgs-smr-sticky-5 {
     margin: 0 auto;
 }
 
+.tgs-smr-card .tgs-smr-product-img {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    padding: 4px;
+}
+
 .tgs-smr-cell-input {
     width: 78px;
     border: 1px solid #cfd7e3;
@@ -398,7 +476,13 @@ th.tgs-smr-sticky-5 {
     }
 
     .tgs-smr-create-grid,
-    .tgs-smr-create-columns {
+    .tgs-smr-create-columns,
+    .tgs-smr-product-editor,
+    .tgs-smr-field-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tgs-smr-image-actions {
         grid-template-columns: 1fr;
     }
 }

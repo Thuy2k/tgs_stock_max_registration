@@ -6,6 +6,7 @@
         products: [],
         shops: [],
         currentRequest: null,
+        imageFrame: null,
         saveTimers: {}
     };
 
@@ -58,6 +59,54 @@
         var n = Number(value);
         if (Number.isNaN(n)) return '';
         return Number.isInteger(n) ? String(n) : String(n).replace(/0+$/, '').replace(/\.$/, '');
+    }
+
+    function setProductImage(url) {
+        $('#smrProductThumb').val(url || '');
+        updateProductImagePreview();
+    }
+
+    function updateProductImagePreview() {
+        var url = $.trim($('#smrProductThumb').val() || '');
+        var $preview = $('#smrProductImagePreview');
+        var $image = $('#smrProductImage');
+        var $placeholder = $('#smrProductImagePlaceholder');
+
+        if (url) {
+            $preview.removeClass('is-empty');
+            $image.attr('src', url).removeClass('d-none');
+            $placeholder.addClass('d-none');
+            return;
+        }
+
+        $preview.addClass('is-empty');
+        $image.attr('src', '').addClass('d-none');
+        $placeholder.removeClass('d-none');
+    }
+
+    function openImagePicker() {
+        if (!window.wp || !wp.media) {
+            toast('Không mở được thư viện ảnh.');
+            return;
+        }
+
+        if (!state.imageFrame) {
+            state.imageFrame = wp.media({
+                title: 'Chọn ảnh sản phẩm',
+                button: {text: 'Dùng ảnh này'},
+                library: {type: 'image'},
+                multiple: false
+            });
+
+            state.imageFrame.on('select', function () {
+                var attachment = state.imageFrame.state().get('selection').first();
+                if (!attachment) return;
+                var data = attachment.toJSON();
+                setProductImage(data.url || '');
+            });
+        }
+
+        state.imageFrame.open();
     }
 
     function switchTab(tab) {
@@ -300,7 +349,7 @@
         $('#smrProductId').val('');
         $('#smrProductSku').val('');
         $('#smrProductName').val('');
-        $('#smrProductThumb').val('');
+        setProductImage('');
         $('#smrProductPrice').val('');
         $('#smrProductBarcode').val('');
         $('#smrProductDesc').val('');
@@ -328,6 +377,11 @@
             $('#smrProductForm').addClass('d-none');
         });
         $('#smrRefreshProducts').on('click', loadProducts);
+        $('#smrPickImageBtn, #smrProductImagePreview').on('click', openImagePicker);
+        $('#smrClearImageBtn').on('click', function () {
+            setProductImage('');
+        });
+        $('#smrProductThumb').on('input change', updateProductImagePreview);
 
         $('#smrSaveProductBtn').on('click', function () {
             ajax('save_temp_product', {
@@ -352,7 +406,7 @@
             $('#smrProductId').val(p.temp_product_id);
             $('#smrProductSku').val(p.product_sku || '');
             $('#smrProductName').val(p.product_name || '');
-            $('#smrProductThumb').val(p.thumbnail_url || '');
+            setProductImage(p.thumbnail_url || '');
             $('#smrProductPrice').val(p.suggested_price || '');
             $('#smrProductBarcode').val(p.supplier_barcode || '');
             $('#smrProductDesc').val(p.product_description || '');
@@ -438,7 +492,7 @@
                 var p = items[0];
                 $('#smrProductSku').val(p.global_product_sku || '');
                 $('#smrProductName').val(p.global_product_name || '');
-                $('#smrProductThumb').val(p.global_product_thumbnail || '');
+                setProductImage(p.global_product_thumbnail || '');
                 $('#smrProductPrice').val(p.global_product_price_after_tax || '');
                 $('#smrProductBarcode').val(p.global_product_barcode_main || '');
                 toast('Đã lấy sản phẩm global đầu tiên tìm thấy');
