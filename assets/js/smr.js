@@ -262,6 +262,18 @@
                 '<span><strong>' + esc(s.name) + '</strong><br><small>ID: ' + esc(s.blog_id) + ' · Mã: ' + esc(s.code) + '</small></span>' +
             '</label>';
         }).join(''));
+        syncShopSelectionState();
+    }
+
+    function syncShopSelectionState() {
+        var $shops = $('.smr-pick-shop');
+        var checkedCount = $shops.filter(':checked').length;
+        $shops.each(function () {
+            $(this).closest('.tgs-smr-pick-row').toggleClass('is-selected', this.checked);
+        });
+        $('#smrSelectAllShops')
+            .prop('checked', $shops.length > 0 && checkedCount === $shops.length)
+            .prop('indeterminate', checkedCount > 0 && checkedCount < $shops.length);
     }
 
     function loadRequests() {
@@ -616,6 +628,10 @@
         });
         $('#smrSelectAllShops').on('change', function () {
             $('.smr-pick-shop').prop('checked', this.checked);
+            syncShopSelectionState();
+        });
+        $(document).on('change', '.smr-pick-shop', function () {
+            syncShopSelectionState();
         });
         $('#smrCreateRequestBtn').on('click', function () {
             var products = state.selectedProducts.map(function (p) {
