@@ -97,6 +97,7 @@ class TGS_SMR_Helper
 
     public static function hierarchy()
     {
+        self::sites_info();
         if (class_exists('TGS_Hierarchy_Data')) {
             $hierarchy = TGS_Hierarchy_Data::get_hierarchy();
             return is_array($hierarchy) ? $hierarchy : [];
@@ -108,6 +109,7 @@ class TGS_SMR_Helper
     public static function descendants($blog_id)
     {
         $blog_id = (int) $blog_id;
+        self::sites_info();
         if (class_exists('TGS_Hierarchy_Data')) {
             $descendants = TGS_Hierarchy_Data::get_all_descendants($blog_id);
             return array_values(array_unique(array_map('intval', (array) $descendants)));

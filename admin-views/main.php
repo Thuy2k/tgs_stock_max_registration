@@ -15,7 +15,7 @@ $import_template_url = wp_nonce_url(
 <div class="tgs-smr-app" id="tgs-smr-app" data-is-warehouse="<?php echo esc_attr($is_warehouse ? '1' : '0'); ?>">
     <div class="tgs-smr-toolbar">
         <div>
-            <h4>Đăng ký tồn max sản phẩm mới</h4>
+            <h4>Chi nhánh đăng ký tồn max cho sản phẩm mới</h4>
             <div class="text-muted">
                 <?php echo esc_html($current_name); ?> · Blog ID <?php echo esc_html((string) $current_blog_id); ?>
             </div>

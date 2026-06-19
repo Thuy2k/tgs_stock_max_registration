@@ -88,6 +88,37 @@ class TGS_SMR_Xlsx_Writer
         return $binary ?: '';
     }
 
+    public static function build_existing_request_workbook($data)
+    {
+        $request = $data['request'];
+        $items = $data['items'];
+        $sheet_xml = self::build_existing_sheet_xml($request, $items);
+        $tmp = wp_tempnam('tgs-smr-existing.xlsx');
+        if (!$tmp) {
+            $tmp = tempnam(sys_get_temp_dir(), 'tgs-smr-existing-');
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($tmp, ZipArchive::OVERWRITE) !== true) {
+            return '';
+        }
+
+        $zip->addFromString('[Content_Types].xml', self::content_types_xml(false, []));
+        $zip->addFromString('_rels/.rels', self::root_rels_xml());
+        $zip->addFromString('docProps/core.xml', self::core_xml($request));
+        $zip->addFromString('docProps/app.xml', self::app_xml());
+        $zip->addFromString('xl/workbook.xml', self::workbook_xml());
+        $zip->addFromString('xl/_rels/workbook.xml.rels', self::workbook_rels_xml());
+        $zip->addFromString('xl/styles.xml', self::styles_xml());
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheet_xml);
+        $zip->close();
+
+        $binary = file_get_contents($tmp);
+        @unlink($tmp);
+
+        return $binary ?: '';
+    }
+
     private static function build_import_template_sheet_xml($rows_data, &$images)
     {
         $rows = [];
@@ -129,6 +160,68 @@ class TGS_SMR_Xlsx_Writer
             . '<sheetData>' . implode('', $rows) . '</sheetData>'
             . '<pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>'
             . '<drawing r:id="rId1"/>'
+            . '</worksheet>';
+    }
+
+    private static function build_existing_sheet_xml($request, $items)
+    {
+        $rows = [];
+        $rows[] = self::row_xml(1, [
+            self::cell(1, 1, 'Mã phiếu', 's', 1),
+            self::cell(1, 2, (string) ($request['request_code'] ?? ''), 's', 4),
+            self::cell(1, 3, 'Shop', 's', 1),
+            self::cell(1, 4, (string) ($request['shop_blog_name_cache'] ?? ''), 's', 4),
+            self::cell(1, 5, 'Trạng thái', 's', 1),
+            self::cell(1, 6, (string) ($request['status_label'] ?? $request['status'] ?? ''), 's', 4),
+        ], 24);
+        $rows[] = self::row_xml(2, [
+            self::cell(2, 1, 'Ghi chú shop', 's', 1),
+            self::cell(2, 2, (string) ($request['note'] ?? ''), 's', 6),
+            self::cell(2, 3, 'Ghi chú kho', 's', 1),
+            self::cell(2, 4, (string) ($request['warehouse_note'] ?? ''), 's', 6),
+        ], 36);
+        $rows[] = self::row_xml(4, [
+            self::cell(4, 1, 'SKU', 's', 1),
+            self::cell(4, 2, 'Tên hàng', 's', 1),
+            self::cell(4, 3, 'Max lúc tạo phiếu', 's', 1),
+            self::cell(4, 4, 'Max hiện tại', 's', 1),
+            self::cell(4, 5, 'Max shop đề xuất', 's', 1),
+            self::cell(4, 6, 'Max kho chốt', 's', 1),
+            self::cell(4, 7, 'Ghi chú shop', 's', 1),
+            self::cell(4, 8, 'Ghi chú kho', 's', 1),
+            self::cell(4, 9, 'Cảnh báo', 's', 1),
+        ], 28);
+
+        $row_num = 5;
+        foreach ((array) $items as $item) {
+            $warning = !empty($item['snapshot_changed']) ? 'Max hiện tại đã khác max lúc tạo phiếu' : '';
+            $rows[] = self::row_xml($row_num, [
+                self::cell($row_num, 1, (string) ($item['product_sku'] ?? ''), 's', 5),
+                self::cell($row_num, 2, (string) ($item['product_name'] ?? ''), 's', 6),
+                self::cell($row_num, 3, self::number_or_blank($item['current_max_qty'] ?? null), 'n', 10),
+                self::cell($row_num, 4, self::number_or_blank($item['latest_max_qty'] ?? null), 'n', 10),
+                self::cell($row_num, 5, self::number_or_blank($item['proposed_max_qty'] ?? null), 'n', 10),
+                self::cell($row_num, 6, self::number_or_blank($item['warehouse_max_qty'] ?? null), 'n', 10),
+                self::cell($row_num, 7, (string) ($item['shop_note'] ?? ''), 's', 6),
+                self::cell($row_num, 8, (string) ($item['warehouse_note'] ?? ''), 's', 6),
+                self::cell($row_num, 9, $warning, 's', $warning ? 8 : 6),
+            ], 42);
+            $row_num++;
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A5" sqref="A5"/></sheetView></sheetViews>'
+            . '<sheetFormatPr defaultRowHeight="18"/>'
+            . '<cols>'
+            . '<col min="1" max="1" width="18" customWidth="1"/>'
+            . '<col min="2" max="2" width="48" customWidth="1"/>'
+            . '<col min="3" max="6" width="18" customWidth="1"/>'
+            . '<col min="7" max="9" width="34" customWidth="1"/>'
+            . '</cols>'
+            . '<sheetData>' . implode('', $rows) . '</sheetData>'
+            . '<mergeCells count="1"><mergeCell ref="D2:I2"/></mergeCells>'
+            . '<pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>'
             . '</worksheet>';
     }
 

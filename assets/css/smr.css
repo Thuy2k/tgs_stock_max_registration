@@ -962,6 +962,172 @@ th.tgs-smr-sticky-5 {
     margin-top: 16px;
 }
 
+.tgs-smr-existing-app .tgs-smr-filter {
+    min-width: min(620px, 100%);
+}
+
+.smre-product-tools {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto auto;
+    gap: 10px;
+    align-items: center;
+    margin: 16px 0;
+}
+
+.smre-table-wrap {
+    overflow: auto;
+    border: 1px solid #d7e1ef;
+    border-radius: 8px;
+    background: #fff;
+    max-height: calc(100vh - 320px);
+}
+
+.smre-grid-table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 14px;
+}
+
+.smre-grid-table th,
+.smre-grid-table td {
+    border: 1px solid #d7e1ef;
+    padding: 9px 10px;
+    vertical-align: middle;
+    background: #fff;
+}
+
+.smre-grid-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #eef3f9;
+    color: #233044;
+    font-weight: 800;
+    text-align: center;
+}
+
+.smre-grid-table td:nth-child(2) {
+    white-space: normal;
+}
+
+.smre-row-changed td {
+    background: #f0fdf4;
+}
+
+.smre-row-invalid td {
+    background: #fff1f2;
+}
+
+.smre-request-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.smre-summary {
+    margin-top: 4px;
+    max-width: 760px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.smre-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 800;
+    background: #edf2ff;
+    color: #1f5aa6;
+}
+
+.smre-status-submitted,
+.smre-status-draft {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.smre-status-approved {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.smre-status-applied {
+    background: #dcfce7;
+    color: #087849;
+}
+
+.smre-status-cancelled {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.smre-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0 16px;
+}
+
+.smre-stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #d7e1ef;
+    background: #f8fbff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #4b607c;
+}
+
+.smre-stats strong {
+    color: #1f5aa6;
+}
+
+.tgs-smr-history {
+    margin-top: 16px;
+    border: 1px solid #d7e1ef;
+    border-radius: 8px;
+    padding: 14px;
+    background: #fff;
+}
+
+.tgs-smr-history h6 {
+    margin: 0 0 10px;
+    font-weight: 800;
+}
+
+.tgs-smr-log-list {
+    display: grid;
+    gap: 8px;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.tgs-smr-log-item {
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    padding: 9px 10px;
+    background: #f8fafc;
+}
+
+.tgs-smr-log-item span {
+    display: block;
+    color: #697a8d;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.tgs-smr-log-item p {
+    margin: 5px 0 0;
+    color: #334155;
+}
+
 @media (max-width: 900px) {
     .tgs-smr-toolbar,
     .tgs-smr-panel-head,
@@ -992,6 +1158,15 @@ th.tgs-smr-sticky-5 {
     .tgs-smr-excel-upload-line,
     .tgs-smr-excel-upload-head,
     .tgs-smr-modal-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .smre-product-tools {
+        grid-template-columns: 1fr;
+    }
+
+    .smre-request-card {
         align-items: stretch;
         flex-direction: column;
     }

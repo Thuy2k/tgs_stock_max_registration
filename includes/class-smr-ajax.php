@@ -21,6 +21,14 @@ class TGS_SMR_Ajax
             'search_global_products' => 'search_global_products',
             'import_products_excel' => 'import_products_excel',
             'payload_shops' => 'payload_shops',
+            'existing_list_requests' => 'existing_list_requests',
+            'existing_products' => 'existing_products',
+            'existing_create_request' => 'existing_create_request',
+            'existing_get_request' => 'existing_get_request',
+            'existing_save_request' => 'existing_save_request',
+            'existing_save_warehouse_review' => 'existing_save_warehouse_review',
+            'existing_update_status' => 'existing_update_status',
+            'existing_apply_request' => 'existing_apply_request',
         ];
 
         foreach ($actions as $action => $method) {
@@ -275,5 +283,139 @@ class TGS_SMR_Ajax
         self::verify_access();
         TGS_SMR_Helper::verify_nonce();
         wp_send_json_success(TGS_SMR_Repository::available_shops_payload());
+    }
+
+    public static function existing_list_requests()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $rows = TGS_SMR_Existing_Repository::list_requests([
+            'mode' => sanitize_key($_POST['mode'] ?? 'shop'),
+            'status' => sanitize_key($_POST['status'] ?? ''),
+            'search' => sanitize_text_field($_POST['search'] ?? ''),
+        ]);
+        wp_send_json_success(['items' => $rows]);
+    }
+
+    public static function existing_products()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        wp_send_json_success(TGS_SMR_Existing_Repository::products_payload([
+            'search' => sanitize_text_field($_POST['search'] ?? ''),
+            'all' => !empty($_POST['all']),
+        ]));
+    }
+
+    public static function existing_create_request()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $items = [];
+        if (!empty($_POST['items_json'])) {
+            $decoded = json_decode(wp_unslash($_POST['items_json']), true);
+            if (is_array($decoded)) {
+                $items = $decoded;
+            }
+        }
+
+        $result = TGS_SMR_Existing_Repository::create_request([
+            'request_title' => sanitize_text_field($_POST['request_title'] ?? ''),
+            'note' => sanitize_textarea_field($_POST['note'] ?? ''),
+            'items' => $items,
+        ]);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+
+        wp_send_json_success(['request_id' => (int) $result]);
+    }
+
+    public static function existing_get_request()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $request_id = absint($_POST['request_id'] ?? 0);
+        $data = TGS_SMR_Existing_Repository::get_request($request_id);
+        if (is_wp_error($data)) {
+            wp_send_json_error(['message' => $data->get_error_message()], 403);
+        }
+        if (!$data) {
+            wp_send_json_error(['message' => 'Không tìm thấy phiếu.'], 404);
+        }
+        wp_send_json_success($data);
+    }
+
+    public static function existing_save_request()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $items = [];
+        if (!empty($_POST['items_json'])) {
+            $decoded = json_decode(wp_unslash($_POST['items_json']), true);
+            if (is_array($decoded)) {
+                $items = $decoded;
+            }
+        }
+
+        $result = TGS_SMR_Existing_Repository::save_shop_request(absint($_POST['request_id'] ?? 0), [
+            'request_title' => sanitize_text_field($_POST['request_title'] ?? ''),
+            'note' => sanitize_textarea_field($_POST['note'] ?? ''),
+            'items' => $items,
+        ]);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+        wp_send_json_success(['saved' => true]);
+    }
+
+    public static function existing_save_warehouse_review()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $items = [];
+        if (!empty($_POST['items_json'])) {
+            $decoded = json_decode(wp_unslash($_POST['items_json']), true);
+            if (is_array($decoded)) {
+                $items = $decoded;
+            }
+        }
+
+        $result = TGS_SMR_Existing_Repository::save_warehouse_review(absint($_POST['request_id'] ?? 0), [
+            'warehouse_note' => sanitize_textarea_field($_POST['warehouse_note'] ?? ''),
+            'items' => $items,
+        ]);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+        wp_send_json_success(['saved' => true]);
+    }
+
+    public static function existing_update_status()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $result = TGS_SMR_Existing_Repository::update_status(
+            absint($_POST['request_id'] ?? 0),
+            sanitize_key($_POST['status'] ?? '')
+        );
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+        wp_send_json_success(['saved' => true]);
+    }
+
+    public static function existing_apply_request()
+    {
+        self::verify_access();
+        TGS_SMR_Helper::verify_nonce();
+        $result = TGS_SMR_Existing_Repository::apply_request(absint($_POST['request_id'] ?? 0));
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()], 400);
+        }
+        wp_send_json_success(['applied_count' => (int) $result]);
     }
 }

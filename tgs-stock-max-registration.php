@@ -3,7 +3,7 @@
  * Plugin Name: TGS Stock Max Registration
  * Plugin URI: https://bizgpt.vn/
  * Description: Quy trình kho tạo phiếu đăng ký tồn max sản phẩm mới cho các shop con.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: BIZGPT_AI
  * Author URI: https://bizgpt.vn/
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('TGS_SMR_VERSION', '1.0.4');
+define('TGS_SMR_VERSION', '1.0.5');
 define('TGS_SMR_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TGS_SMR_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -41,6 +41,7 @@ class TGS_Stock_Max_Registration
     {
         require_once TGS_SMR_PLUGIN_DIR . 'includes/class-smr-helper.php';
         require_once TGS_SMR_PLUGIN_DIR . 'includes/class-smr-repository.php';
+        require_once TGS_SMR_PLUGIN_DIR . 'includes/class-smr-existing-repository.php';
         require_once TGS_SMR_PLUGIN_DIR . 'includes/class-smr-xlsx-importer.php';
         require_once TGS_SMR_PLUGIN_DIR . 'includes/class-smr-xlsx-writer.php';
         require_once TGS_SMR_PLUGIN_DIR . 'includes/class-smr-ajax.php';
@@ -52,6 +53,7 @@ class TGS_Stock_Max_Registration
         add_filter('tgs_shop_workflow_nav', [$this, 'add_workflow_nav'], 20, 2);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('admin_post_tgs_smr_export_request', [$this, 'export_request']);
+        add_action('admin_post_tgs_smr_existing_export_request', [$this, 'export_existing_request']);
         add_action('admin_post_tgs_smr_download_import_template', [$this, 'download_import_template']);
 
         TGS_SMR_Ajax::init();
@@ -62,6 +64,12 @@ class TGS_Stock_Max_Registration
         $routes['stock-max-registration'] = [
             'Đăng ký tồn max sản phẩm mới',
             TGS_SMR_PLUGIN_DIR . 'admin-views/main.php',
+        ];
+
+        $routes['stock-max-registration'][0] = 'Chi nhánh đăng ký tồn max cho sản phẩm mới';
+        $routes['stock-max-existing-registration'] = [
+            'Đăng ký max cho sản phẩm đã có mã hàng',
+            TGS_SMR_PLUGIN_DIR . 'admin-views/existing.php',
         ];
 
         return $routes;
@@ -79,12 +87,21 @@ class TGS_Stock_Max_Registration
             'icon' => 'bx bx-table',
             'active_views' => ['stock-max-registration'],
         ];
+        $item['label'] = 'Chi nhánh đăng ký tồn max cho sản phẩm mới';
+        $existing_item = [
+            'view' => 'stock-max-existing-registration',
+            'permission_view' => 'stock-max-registration',
+            'label' => 'Đăng ký max cho sản phẩm đã có mã hàng',
+            'icon' => 'bx bx-edit-alt',
+            'active_views' => ['stock-max-existing-registration'],
+        ];
 
         $inserted = false;
         foreach ($workflow_nav['purchase']['sections'] as &$section) {
             $heading = !empty($section['heading']) ? remove_accents((string) $section['heading']) : '';
-            if ($heading !== '' && stripos($heading, 'cau hinh') !== false) {
+            if ($heading !== '' && stripos($heading, 'dang ky ton max') !== false) {
                 $section['items'][] = $item;
+                $section['items'][] = $existing_item;
                 $inserted = true;
                 break;
             }
@@ -95,7 +112,7 @@ class TGS_Stock_Max_Registration
             $workflow_nav['purchase']['sections'][] = [
                 'heading' => 'Đăng ký tồn max',
                 'icon' => 'bx bx-table',
-                'items' => [$item],
+                'items' => [$item, $existing_item],
             ];
         }
 
@@ -109,7 +126,7 @@ class TGS_Stock_Max_Registration
         }
 
         $view = isset($_GET['view']) ? sanitize_key(wp_unslash($_GET['view'])) : '';
-        if ($view !== 'stock-max-registration') {
+        if (!in_array($view, ['stock-max-registration', 'stock-max-existing-registration'], true)) {
             return;
         }
 
@@ -122,19 +139,23 @@ class TGS_Stock_Max_Registration
             TGS_SMR_VERSION
         );
 
+        $script_handle = $view === 'stock-max-existing-registration' ? 'tgs-smr-existing' : 'tgs-smr';
+        $script_file = $view === 'stock-max-existing-registration' ? 'assets/js/smr-existing.js' : 'assets/js/smr.js';
+
         wp_enqueue_script(
-            'tgs-smr',
-            TGS_SMR_PLUGIN_URL . 'assets/js/smr.js',
+            $script_handle,
+            TGS_SMR_PLUGIN_URL . $script_file,
             ['jquery'],
             TGS_SMR_VERSION,
             true
         );
 
-        wp_localize_script('tgs-smr', 'TgsSmr', [
+        wp_localize_script($script_handle, 'TgsSmr', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'exportUrl' => admin_url('admin-post.php'),
             'nonce' => wp_create_nonce('tgs_smr_nonce'),
             'currentBlogId' => get_current_blog_id(),
+            'view' => $view,
         ]);
     }
 
@@ -154,6 +175,45 @@ class TGS_Stock_Max_Registration
 
         $binary = TGS_SMR_Xlsx_Writer::build_request_workbook($data);
         $filename = sanitize_file_name(($data['request']['request_code'] ?: 'dang-ky-max') . '.xlsx');
+
+        while (ob_get_level() > 0) {
+            if (!@ob_end_clean()) {
+                break;
+            }
+        }
+
+        nocache_headers();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
+        header('Content-Length: ' . strlen($binary));
+        header('X-Content-Type-Options: nosniff');
+        echo $binary;
+        exit;
+    }
+
+    public function export_existing_request()
+    {
+        $request_id = isset($_GET['request_id']) ? absint($_GET['request_id']) : 0;
+        $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : '';
+
+        if (!$request_id || !wp_verify_nonce($nonce, 'tgs_smr_existing_export_' . $request_id)) {
+            wp_die('Link xuat Excel khong hop le.', 403);
+        }
+
+        $data = TGS_SMR_Existing_Repository::get_request($request_id);
+        if (is_wp_error($data)) {
+            wp_die($data->get_error_message(), 403);
+        }
+        if (!$data) {
+            wp_die('Khong tim thay phieu.', 404);
+        }
+
+        $binary = TGS_SMR_Xlsx_Writer::build_existing_request_workbook($data);
+        if ($binary === '') {
+            wp_die('Khong tao duoc file Excel.', 500);
+        }
+
+        $filename = sanitize_file_name(($data['request']['request_code'] ?: 'dang-ky-max-sku') . '.xlsx');
 
         while (ob_get_level() > 0) {
             if (!@ob_end_clean()) {
