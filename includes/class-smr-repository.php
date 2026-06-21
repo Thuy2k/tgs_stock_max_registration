@@ -15,7 +15,7 @@ class TGS_SMR_Repository
             'value' => TGS_SMR_Helper::table('request_value'),
             'log' => TGS_SMR_Helper::table('request_log'),
             'stock_config' => $GLOBALS['wpdb']->base_prefix . 'global_sku_stock_config',
-            'global_product' => $GLOBALS['wpdb']->base_prefix . 'global_product_name',
+            'global_product' => TGS_SMR_Helper::global_product_table(),
         ];
     }
     public static function list_requests($args = [])
@@ -660,19 +660,22 @@ class TGS_SMR_Repository
             return new WP_Error('missing_item_sku', $message);
         }
 
-        $invalid_sku_items = $wpdb->get_results($wpdb->prepare(
+        $sku_items = $wpdb->get_results($wpdb->prepare(
             "SELECT i.request_item_id, i.product_name, i.product_sku
              FROM {$t['item']} i
-             LEFT JOIN {$t['global_product']} gp
-                    ON gp.global_product_sku = i.product_sku
-                   AND gp.is_deleted = 0
              WHERE i.request_id = %d
                AND i.product_sku IS NOT NULL
                AND TRIM(i.product_sku) <> ''
-               AND gp.global_product_name_id IS NULL
              ORDER BY i.item_order ASC, i.request_item_id ASC",
             $request_id
         ), ARRAY_A);
+
+        $invalid_sku_items = [];
+        foreach ((array) $sku_items as $sku_item) {
+            if (!self::find_global_product_by_sku((string) ($sku_item['product_sku'] ?? ''))) {
+                $invalid_sku_items[] = $sku_item;
+            }
+        }
 
         if (!empty($invalid_sku_items)) {
             $items = array_map(static function ($item) {
@@ -777,40 +780,30 @@ class TGS_SMR_Repository
 
     private static function find_global_product_by_sku($sku)
     {
-        global $wpdb;
         $sku = trim(sanitize_text_field((string) $sku));
         if ($sku === '') {
             return null;
         }
 
-        $t = self::tables();
-        return $wpdb->get_row($wpdb->prepare(
-            "SELECT global_product_name_id, global_product_sku, global_product_name
-             FROM {$t['global_product']}
-             WHERE is_deleted = 0
-               AND global_product_sku = %s
-             LIMIT 1",
-            $sku
-        ), ARRAY_A);
+        if (TGS_SMR_Helper::ensure_global_product_source() && class_exists('TGS_Global_Product_Source')) {
+            return TGS_SMR_Helper::normalize_global_product(TGS_Global_Product_Source::get_product($sku, ['by' => 'sku']));
+        }
+
+        return null;
     }
 
     private static function find_global_product_by_id($id)
     {
-        global $wpdb;
         $id = (int) $id;
         if ($id <= 0) {
             return null;
         }
 
-        $t = self::tables();
-        return $wpdb->get_row($wpdb->prepare(
-            "SELECT global_product_name_id, global_product_sku, global_product_name
-             FROM {$t['global_product']}
-             WHERE is_deleted = 0
-               AND global_product_name_id = %d
-             LIMIT 1",
-            $id
-        ), ARRAY_A);
+        if (TGS_SMR_Helper::ensure_global_product_source() && class_exists('TGS_Global_Product_Source')) {
+            return TGS_SMR_Helper::normalize_global_product(TGS_Global_Product_Source::get_product($id, ['by' => 'id']));
+        }
+
+        return null;
     }
 
     private static function add_log($request_id, $data, $inside_transaction = true)

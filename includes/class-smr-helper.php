@@ -16,6 +16,75 @@ class TGS_SMR_Helper
         return $wpdb->base_prefix . 'global_stock_max_' . $suffix;
     }
 
+    public static function ensure_global_product_source()
+    {
+        if (class_exists('TGS_Global_Product_Source') && defined('TGS_TABLE_GLOBAL_PRODUCT_NAME')) {
+            return true;
+        }
+
+        $shop_plugin_dir = defined('TGS_SHOP_PLUGIN_DIR')
+            ? TGS_SHOP_PLUGIN_DIR
+            : WP_PLUGIN_DIR . '/tgs_shop_management/';
+
+        if (!defined('TGS_TABLE_GLOBAL_PRODUCT_NAME')) {
+            $constants_file = $shop_plugin_dir . 'includes/class-tgs-constants.php';
+            if (file_exists($constants_file)) {
+                require_once $constants_file;
+                if (class_exists('TGS_Shop_Constants')) {
+                    TGS_Shop_Constants::init();
+                }
+            }
+        }
+
+        if (!class_exists('TGS_Global_Product_Source')) {
+            $source_file = $shop_plugin_dir . 'functions/class-tgs-global-product-source.php';
+            if (file_exists($source_file)) {
+                require_once $source_file;
+            }
+        }
+
+        return class_exists('TGS_Global_Product_Source') && defined('TGS_TABLE_GLOBAL_PRODUCT_NAME');
+    }
+
+    public static function global_product_table()
+    {
+        self::ensure_global_product_source();
+        return defined('TGS_TABLE_GLOBAL_PRODUCT_NAME') ? TGS_TABLE_GLOBAL_PRODUCT_NAME : 'wp_global_product_name';
+    }
+
+    public static function global_product_table_exists()
+    {
+        global $wpdb;
+
+        $table = self::global_product_table();
+        if ($table === '') {
+            return false;
+        }
+
+        if (class_exists('TGS_Global_Product_Source') && method_exists('TGS_Global_Product_Source', 'table_exists')) {
+            return TGS_Global_Product_Source::table_exists($table);
+        }
+
+        return $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table;
+    }
+
+    public static function normalize_global_product($product)
+    {
+        if (empty($product)) {
+            return null;
+        }
+
+        $product = is_array($product) ? $product : (array) $product;
+        return [
+            'global_product_name_id' => (int) ($product['global_product_name_id'] ?? 0),
+            'global_product_sku' => (string) ($product['global_product_sku'] ?? ''),
+            'global_product_name' => (string) ($product['global_product_name'] ?? ''),
+            'global_product_thumbnail' => (string) ($product['global_product_thumbnail'] ?? ''),
+            'global_product_barcode_main' => (string) ($product['global_product_barcode_main'] ?? ''),
+            'global_product_price_after_tax' => (float) ($product['global_product_price_after_tax'] ?? 0),
+        ];
+    }
+
     public static function now()
     {
         return current_time('mysql');

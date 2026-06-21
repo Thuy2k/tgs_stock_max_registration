@@ -250,27 +250,30 @@ class TGS_SMR_Ajax
     {
         self::verify_access();
         TGS_SMR_Helper::verify_nonce();
-        global $wpdb;
         $keyword = trim(sanitize_text_field($_POST['keyword'] ?? ''));
         if ($keyword === '') {
             wp_send_json_success(['items' => []]);
         }
 
-        $like = '%' . $wpdb->esc_like($keyword) . '%';
-        $table = $wpdb->base_prefix . 'global_product_name';
-        $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT global_product_name_id, global_product_sku, global_product_name, global_product_thumbnail, global_product_barcode_main, global_product_price_after_tax
-             FROM {$table}
-             WHERE is_deleted = 0
-               AND (global_product_name LIKE %s OR global_product_sku LIKE %s OR global_product_barcode_main LIKE %s)
-             ORDER BY updated_at DESC, global_product_name_id DESC
-             LIMIT 30",
-            $like,
-            $like,
-            $like
-        ), ARRAY_A);
+        TGS_SMR_Helper::ensure_global_product_source();
+        if (!class_exists('TGS_Global_Product_Source')) {
+            wp_send_json_success(['items' => []]);
+        }
 
-        wp_send_json_success(['items' => $rows ?: []]);
+        $result = TGS_Global_Product_Source::query_products([
+            'search' => $keyword,
+            'page' => 1,
+            'per_page' => 30,
+            'parent_only' => false,
+            'order_by' => 'global_product_name_id',
+            'order_dir' => 'DESC',
+        ]);
+
+        $items = array_map(static function ($product) {
+            return TGS_SMR_Helper::normalize_global_product($product);
+        }, (array) ($result['items'] ?? []));
+
+        wp_send_json_success(['items' => array_values(array_filter($items))]);
     }
 
     public static function import_products_excel()
