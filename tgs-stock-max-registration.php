@@ -90,7 +90,6 @@ class TGS_Stock_Max_Registration
         $item['label'] = 'Chi nhánh đăng ký tồn max cho sản phẩm mới';
         $existing_item = [
             'view' => 'stock-max-existing-registration',
-            'permission_view' => 'stock-max-registration',
             'label' => 'Đăng ký max cho sản phẩm đã có mã hàng',
             'icon' => 'bx bx-edit-alt',
             'active_views' => ['stock-max-existing-registration'],
@@ -164,6 +163,10 @@ class TGS_Stock_Max_Registration
         $request_id = isset($_GET['request_id']) ? absint($_GET['request_id']) : 0;
         $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : '';
 
+        if (!$this->can_access_view('stock-max-registration')) {
+            wp_die('Bạn không có quyền truy cập.', 403);
+        }
+
         if (!$request_id || !wp_verify_nonce($nonce, 'tgs_smr_export_' . $request_id)) {
             wp_die('Link xuất Excel không hợp lệ.', 403);
         }
@@ -195,6 +198,10 @@ class TGS_Stock_Max_Registration
     {
         $request_id = isset($_GET['request_id']) ? absint($_GET['request_id']) : 0;
         $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : '';
+
+        if (!$this->can_access_view('stock-max-existing-registration')) {
+            wp_die('Bạn không có quyền truy cập.', 403);
+        }
 
         if (!$request_id || !wp_verify_nonce($nonce, 'tgs_smr_existing_export_' . $request_id)) {
             wp_die('Link xuat Excel khong hop le.', 403);
@@ -241,6 +248,10 @@ class TGS_Stock_Max_Registration
             wp_die('Bạn cần đăng nhập.', 403);
         }
 
+        if (!$this->can_access_view('stock-max-registration')) {
+            wp_die('Bạn không có quyền truy cập.', 403);
+        }
+
         if (!TGS_SMR_Helper::is_warehouse_blog(get_current_blog_id()) && !current_user_can('manage_options')) {
             wp_die('Chỉ kho tạo phiếu mới được tải mẫu nhập Excel.', 403);
         }
@@ -264,6 +275,22 @@ class TGS_Stock_Max_Registration
         header('X-Content-Type-Options: nosniff');
         echo $binary;
         exit;
+    }
+
+    private function can_access_view($view)
+    {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+
+        if (class_exists('TGS_Permission')) {
+            $permission = TGS_Permission::get_instance();
+            if (method_exists($permission, 'user_can_access_view')) {
+                return $permission->user_can_access_view(get_current_user_id(), $view);
+            }
+        }
+
+        return false;
     }
 
     public static function activate()

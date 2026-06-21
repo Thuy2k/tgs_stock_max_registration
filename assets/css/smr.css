@@ -369,6 +369,37 @@
     background: #fbfdff;
 }
 
+.tgs-smr-shop-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0 12px;
+}
+
+.tgs-smr-shop-search {
+    position: relative;
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.tgs-smr-shop-search i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #8a99ad;
+    pointer-events: none;
+}
+
+.tgs-smr-shop-search input {
+    padding-left: 38px;
+}
+
+#smrShopSearchCount {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
 .tgs-smr-pick-row {
     display: flex;
     gap: 10px;
@@ -392,6 +423,11 @@
 
 .tgs-smr-pick-row.is-selected strong {
     color: #0f4f96;
+}
+
+.tgs-smr-pick-row small + small {
+    display: block;
+    margin-top: 2px;
 }
 
 .tgs-smr-pick-row input[type="checkbox"],

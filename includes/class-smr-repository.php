@@ -82,8 +82,8 @@ class TGS_SMR_Repository
         $note = sanitize_textarea_field($data['note'] ?? '');
         $products = self::normalize_request_products($data['products'] ?? []);
         $shop_ids = array_values(array_unique(array_map('intval', (array) ($data['shop_ids'] ?? []))));
-        $include_demo = !empty($data['include_demo']);
-        $demo_count = max(0, min(150, (int) ($data['demo_count'] ?? 0)));
+        $include_demo = false;
+        $demo_count = 0;
 
         if (is_wp_error($products)) {
             return $products;
@@ -115,7 +115,7 @@ class TGS_SMR_Repository
         $demo_targets = $include_demo ? TGS_SMR_Helper::demo_sites($demo_count, 1) : [];
         $targets = array_merge($real_targets, $demo_targets);
         if (empty($targets)) {
-            return new WP_Error('missing_shops', 'Vui lòng chọn shop hoặc bật shop demo.');
+            return new WP_Error('missing_shops', 'Vui lòng chọn shop thật.');
         }
 
         $now = TGS_SMR_Helper::now();
@@ -748,7 +748,7 @@ class TGS_SMR_Repository
         $real = TGS_SMR_Helper::real_target_sites(get_current_blog_id(), false);
         return [
             'real_shops' => $real,
-            'recommended_demo_count' => max(0, 65 - count($real)),
+            'recommended_demo_count' => 0,
             'is_warehouse' => TGS_SMR_Helper::is_warehouse_blog(get_current_blog_id()),
         ];
     }

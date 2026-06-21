@@ -36,20 +36,32 @@ class TGS_SMR_Ajax
         }
     }
 
-    private static function verify_access()
+    private static function verify_access($view = '')
     {
         if (!is_user_logged_in()) {
             wp_send_json_error(['message' => 'Bạn cần đăng nhập.'], 403);
         }
 
+        if ($view === '') {
+            $action = isset($_POST['action']) ? sanitize_key(wp_unslash($_POST['action'])) : '';
+            $view = strpos($action, 'tgs_smr_existing_') === 0
+                ? 'stock-max-existing-registration'
+                : 'stock-max-registration';
+        }
+
         if (class_exists('TGS_Permission')) {
             $permission = TGS_Permission::get_instance();
             if (method_exists($permission, 'user_can_access_view')) {
-                $can = $permission->user_can_access_view(get_current_user_id(), 'stock-max-registration');
-                if (!$can && !current_user_can('manage_options')) {
+                $can = $permission->user_can_access_view(get_current_user_id(), $view);
+                if (!$can) {
                     wp_send_json_error(['message' => 'Bạn không có quyền truy cập.'], 403);
                 }
+                return;
             }
+        }
+
+        if ($view !== 'stock-max-registration') {
+            wp_send_json_error(['message' => 'Bạn không có quyền truy cập.'], 403);
         }
     }
     public static function list_requests()
@@ -89,8 +101,8 @@ class TGS_SMR_Ajax
             'note' => sanitize_textarea_field($_POST['note'] ?? ''),
             'products' => $products,
             'shop_ids' => $shop_ids,
-            'include_demo' => !empty($_POST['include_demo']),
-            'demo_count' => absint($_POST['demo_count'] ?? 65),
+            'include_demo' => false,
+            'demo_count' => 0,
         ]);
 
         if (is_wp_error($result)) {

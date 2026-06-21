@@ -172,17 +172,24 @@ $import_template_url = wp_nonce_url(
                     <div class="tgs-smr-subhead">
                         <strong>Chọn shop</strong>
                         <label class="tgs-smr-checkline">
-                            <input type="checkbox" id="smrSelectAllShops"> Tất cả shop thật
+                            <input type="checkbox" id="smrSelectAllShops"> Chọn tất cả
                         </label>
                     </div>
+                    <div class="tgs-smr-shop-tools">
+                        <div class="tgs-smr-shop-search">
+                            <i class="bx bx-search"></i>
+                            <input type="search" class="form-control" id="smrShopSearchInput" placeholder="Tìm tên shop, website hoặc mã shop">
+                        </div>
+                        <small id="smrShopSearchCount" class="text-muted"></small>
+                    </div>
                     <div class="tgs-smr-picker" id="smrShopPicker"></div>
-                    <label class="tgs-smr-checkline mt-3">
-                        <input type="checkbox" id="smrIncludeDemo" checked>
+                    <label class="tgs-smr-checkline mt-3 tgs-smr-demo-disabled" hidden>
+                        <input type="checkbox" id="smrIncludeDemo" disabled>
                         Thêm shop demo cho đủ dữ liệu thuyết trình
                     </label>
-                    <div class="tgs-smr-demo-line">
+                    <div class="tgs-smr-demo-line tgs-smr-demo-disabled" hidden>
                         <span>Số shop demo</span>
-                        <input type="number" class="form-control" id="smrDemoCount" min="0" max="150" value="65">
+                        <input type="number" class="form-control" id="smrDemoCount" min="0" max="150" value="0" disabled>
                     </div>
                 </div>
             </div>

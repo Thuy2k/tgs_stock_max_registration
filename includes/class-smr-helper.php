@@ -6,6 +6,10 @@ if (!defined('ABSPATH')) {
 
 class TGS_SMR_Helper
 {
+    private static $blog_site_code_cache = [];
+    private static $blog_site_code_column_exists = null;
+    private static $blog_web_label_cache = [];
+
     public static function table($suffix)
     {
         global $wpdb;
@@ -53,6 +57,11 @@ class TGS_SMR_Helper
             return 'DEMO' . str_pad((string) abs($blog_id), 2, '0', STR_PAD_LEFT);
         }
 
+        $blogs_table_code = self::site_code_from_blogs_table($blog_id);
+        if ($blogs_table_code !== '') {
+            return $blogs_table_code;
+        }
+
         $custom = isset($site_info['custom_data']) && is_array($site_info['custom_data'])
             ? $site_info['custom_data']
             : [];
@@ -67,6 +76,93 @@ class TGS_SMR_Helper
         }
 
         return (string) $blog_id;
+    }
+
+    public static function prime_site_code_cache($blog_ids)
+    {
+        global $wpdb;
+
+        if (empty($wpdb->blogs)) {
+            return;
+        }
+
+        $blog_ids = array_values(array_unique(array_filter(array_map('intval', (array) $blog_ids), static function ($blog_id) {
+            return $blog_id > 0;
+        })));
+
+        $missing = array_values(array_filter($blog_ids, static function ($blog_id) {
+            return !array_key_exists($blog_id, self::$blog_site_code_cache);
+        }));
+
+        if (empty($missing)) {
+            return;
+        }
+
+        if (self::$blog_site_code_column_exists === null) {
+            $blogs_table = esc_sql($wpdb->blogs);
+            self::$blog_site_code_column_exists = (bool) $wpdb->get_var("SHOW COLUMNS FROM {$blogs_table} LIKE 'tgs_site_code'");
+        }
+
+        if (!self::$blog_site_code_column_exists) {
+            foreach ($missing as $blog_id) {
+                self::$blog_site_code_cache[$blog_id] = '';
+            }
+            return;
+        }
+
+        $blogs_table = esc_sql($wpdb->blogs);
+        $placeholders = implode(',', array_fill(0, count($missing), '%d'));
+        $rows = (array) $wpdb->get_results($wpdb->prepare(
+            "SELECT blog_id, tgs_site_code FROM {$blogs_table} WHERE blog_id IN ({$placeholders})",
+            ...$missing
+        ), ARRAY_A);
+
+        foreach ($missing as $blog_id) {
+            self::$blog_site_code_cache[$blog_id] = '';
+        }
+
+        foreach ($rows as $row) {
+            $row_blog_id = isset($row['blog_id']) ? (int) $row['blog_id'] : 0;
+            if ($row_blog_id > 0) {
+                self::$blog_site_code_cache[$row_blog_id] = trim((string) ($row['tgs_site_code'] ?? ''));
+            }
+        }
+    }
+
+    public static function site_code_from_blogs_table($blog_id)
+    {
+        $blog_id = (int) $blog_id;
+        if ($blog_id <= 0) {
+            return '';
+        }
+
+        self::prime_site_code_cache([$blog_id]);
+        return self::$blog_site_code_cache[$blog_id] ?? '';
+    }
+
+    public static function site_web_label($blog_id)
+    {
+        $blog_id = (int) $blog_id;
+        if ($blog_id <= 0) {
+            return '';
+        }
+
+        if (array_key_exists($blog_id, self::$blog_web_label_cache)) {
+            return self::$blog_web_label_cache[$blog_id];
+        }
+
+        $site = function_exists('get_site') ? get_site($blog_id) : null;
+        if (!$site && function_exists('get_blog_details')) {
+            $site = get_blog_details($blog_id);
+        }
+
+        $domain = isset($site->domain) ? trim((string) $site->domain) : '';
+        $path = isset($site->path) ? trim((string) $site->path) : '';
+        $label = trim($domain . $path);
+        $label = $label !== '' ? rtrim($label, '/') : '';
+
+        self::$blog_web_label_cache[$blog_id] = $label;
+        return $label;
     }
 
     public static function sites_info()
@@ -152,7 +248,7 @@ class TGS_SMR_Helper
         if (empty($ids) && is_multisite()) {
             $ids = array_map('intval', get_sites([
                 'fields' => 'ids',
-                'number' => 200,
+                'number' => 1000,
                 'orderby' => 'blog_id',
                 'order' => 'ASC',
             ]));
@@ -165,8 +261,11 @@ class TGS_SMR_Helper
             array_unshift($ids, $source_blog_id);
         }
 
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        self::prime_site_code_cache($ids);
+
         $targets = [];
-        foreach (array_values(array_unique(array_map('intval', $ids))) as $id) {
+        foreach ($ids as $id) {
             if ($id <= 0) {
                 continue;
             }
@@ -178,6 +277,7 @@ class TGS_SMR_Helper
                 'blog_id' => $id,
                 'name' => self::site_name($id),
                 'code' => self::site_code($id, $info),
+                'site_url' => self::site_web_label($id),
                 'is_fake' => 0,
                 'site_type' => self::is_warehouse_blog($id) ? 1 : 0,
             ];

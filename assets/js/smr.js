@@ -10,7 +10,8 @@
         globalSearchSeq: 0,
         saveTimers: {},
         excelImportItems: [],
-        selectedProducts: []
+        selectedProducts: [],
+        selectedShopIds: {}
     };
 
     function ajax(action, data) {
@@ -97,6 +98,73 @@
                 fn.apply(context, args);
             }, wait);
         };
+    }
+
+    function normalizeSearch(value) {
+        var text = String(value == null ? '' : value).toLowerCase();
+        if (typeof text.normalize === 'function') {
+            text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+        return text.replace(/đ/g, 'd').replace(/\s+/g, ' ').trim();
+    }
+
+    function shopSearchText(shop) {
+        return [
+            shop && shop.name,
+            shop && shop.code,
+            shop && shop.site_url,
+            shop && shop.blog_id
+        ].join(' ');
+    }
+
+    function getFilteredShops() {
+        var keyword = normalizeSearch($('#smrShopSearchInput').val() || '');
+        if (!keyword) return state.shops;
+        return state.shops.filter(function (shop) {
+            return normalizeSearch(shopSearchText(shop)).indexOf(keyword) !== -1;
+        });
+    }
+
+    function rememberShopSelection(id, checked) {
+        id = String(id || '');
+        if (!id) return;
+        if (checked) {
+            state.selectedShopIds[id] = true;
+        } else {
+            delete state.selectedShopIds[id];
+        }
+    }
+
+    function pruneSelectedShops() {
+        var valid = {};
+        state.shops.forEach(function (shop) {
+            valid[String(shop.blog_id)] = true;
+        });
+        Object.keys(state.selectedShopIds).forEach(function (id) {
+            if (!valid[id]) delete state.selectedShopIds[id];
+        });
+    }
+
+    function selectedRealShopCount() {
+        var valid = {};
+        var count = 0;
+        state.shops.forEach(function (shop) {
+            valid[String(shop.blog_id)] = true;
+        });
+        Object.keys(state.selectedShopIds).forEach(function (id) {
+            if (valid[id]) count++;
+        });
+        return count;
+    }
+
+    function updateShopSearchCount(visibleCount) {
+        var total = state.shops.length;
+        var selected = selectedRealShopCount();
+        var text = total ? (visibleCount + '/' + total + ' shop') : '';
+        if (selected) {
+            text += ' · đã chọn ' + selected;
+        }
+        $('#smrShopSearchCount').text(text);
     }
 
     function switchTab(tab) {
@@ -382,22 +450,44 @@
         if (!state.isWarehouse) return $.Deferred().resolve().promise();
         return ajax('payload_shops').then(function (data) {
             state.shops = data.real_shops || [];
-            if (data.recommended_demo_count != null) $('#smrDemoCount').val(data.recommended_demo_count);
+            pruneSelectedShops();
+            $('#smrIncludeDemo').prop('checked', false).prop('disabled', true);
+            $('#smrDemoCount').val(0).prop('disabled', true);
             renderShopPicker();
         }, toast);
     }
 
     function renderShopPicker() {
         var $picker = $('#smrShopPicker');
+        var shops = getFilteredShops();
+        var total = state.shops.length;
+        var keyword = $.trim($('#smrShopSearchInput').val() || '');
         if (!$picker.length) return;
-        if (!state.shops.length) {
-            renderEmpty($picker, 'Chưa có shop con thật trong hierarchy. Vẫn có thể dùng shop demo để thuyết trình.');
+        updateShopSearchCount(shops.length);
+
+        if (!total) {
+            renderEmpty($picker, 'Chưa có shop con thật trong hierarchy.');
+            syncShopSelectionState();
             return;
         }
-        $picker.html(state.shops.map(function (s) {
+
+        if (!shops.length) {
+            renderEmpty($picker, keyword ? 'Không tìm thấy shop phù hợp.' : 'Chưa có shop con thật trong hierarchy.');
+            syncShopSelectionState();
+            return;
+        }
+
+        $picker.html(shops.map(function (s) {
+            var id = String(s.blog_id || '');
+            var checked = state.selectedShopIds[id] ? ' checked' : '';
+            var code = s.code || '-';
+            var siteUrl = s.site_url || '';
             return '<label class="tgs-smr-pick-row">' +
-                '<input type="checkbox" class="smr-pick-shop" value="' + esc(s.blog_id) + '">' +
-                '<span><strong>' + esc(s.name) + '</strong><br><small>ID: ' + esc(s.blog_id) + ' · Mã: ' + esc(s.code) + '</small></span>' +
+                '<input type="checkbox" class="smr-pick-shop" value="' + esc(id) + '"' + checked + '>' +
+                '<span><strong>' + esc(s.name) + '</strong><br>' +
+                    '<small>Mã: ' + esc(code) + ' · ID: ' + esc(s.blog_id) + '</small>' +
+                    (siteUrl ? '<small>Website: ' + esc(siteUrl) + '</small>' : '') +
+                '</span>' +
             '</label>';
         }).join(''));
         syncShopSelectionState();
@@ -405,13 +495,15 @@
 
     function syncShopSelectionState() {
         var $shops = $('.smr-pick-shop');
-        var checkedCount = $shops.filter(':checked').length;
+        var selectedCount = selectedRealShopCount();
+        var total = state.shops.length;
         $shops.each(function () {
             $(this).closest('.tgs-smr-pick-row').toggleClass('is-selected', this.checked);
         });
         $('#smrSelectAllShops')
-            .prop('checked', $shops.length > 0 && checkedCount === $shops.length)
-            .prop('indeterminate', checkedCount > 0 && checkedCount < $shops.length);
+            .prop('checked', total > 0 && selectedCount === total)
+            .prop('indeterminate', selectedCount > 0 && selectedCount < total);
+        updateShopSearchCount(getFilteredShops().length);
     }
 
     function loadRequests() {
@@ -801,12 +893,18 @@
             renderProductPicker();
         });
         $('#smrSelectAllShops').on('change', function () {
-            $('.smr-pick-shop').prop('checked', this.checked);
+            var checked = this.checked;
+            state.shops.forEach(function (shop) {
+                rememberShopSelection(shop.blog_id, checked);
+            });
+            $('.smr-pick-shop').prop('checked', checked);
             syncShopSelectionState();
         });
         $(document).on('change', '.smr-pick-shop', function () {
+            rememberShopSelection(this.value, this.checked);
             syncShopSelectionState();
         });
+        $('#smrShopSearchInput').on('input', debounce(renderShopPicker, 160));
         $('#smrCreateRequestBtn').on('click', function () {
             var products = state.selectedProducts.map(function (p) {
                 return {
@@ -818,7 +916,7 @@
                     product_description: p.product_description || ''
                 };
             });
-            var shops = $('.smr-pick-shop:checked').map(function () { return this.value; }).get();
+            var shops = Object.keys(state.selectedShopIds);
             if (!products.length) {
                 toast('Vui lòng thêm ít nhất 1 sản phẩm vào phiếu.');
                 $('#smrProductName').focus();
@@ -829,12 +927,14 @@
                 note: $('#smrRequestNote').val(),
                 products_json: JSON.stringify(products),
                 shop_ids_json: JSON.stringify(shops),
-                include_demo: $('#smrIncludeDemo').is(':checked') ? 1 : 0,
-                demo_count: $('#smrDemoCount').val()
+                include_demo: 0,
+                demo_count: 0
             }).then(function (data) {
                 toast('Đã tạo phiếu');
                 state.selectedProducts = [];
+                state.selectedShopIds = {};
                 renderProductPicker();
+                renderShopPicker();
                 resetProductForm();
                 loadRequests();
                 openRequest(data.request_id);
